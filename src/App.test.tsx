@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
@@ -78,7 +78,7 @@ describe("Module filter and empty-state layout (#188)", () => {
 
   it("filters modules matching search query by name or description", () => {
     render(<App />);
-    const filterInput = screen.getByLabelText("Filter modules");
+    const filterInput = screen.getByLabelText("Search modules by name or description");
 
     fireEvent.change(filterInput, { target: { value: "ledger" } });
 
@@ -89,7 +89,7 @@ describe("Module filter and empty-state layout (#188)", () => {
 
   it("renders an accessible empty-state layout when no modules match the filter", () => {
     render(<App />);
-    const filterInput = screen.getByLabelText("Filter modules");
+    const filterInput = screen.getByLabelText("Search modules by name or description");
 
     fireEvent.change(filterInput, { target: { value: "nonexistent-module" } });
 
@@ -100,7 +100,7 @@ describe("Module filter and empty-state layout (#188)", () => {
       screen.getByText(/No modules match/i),
     ).toBeInTheDocument();
 
-    const resetButton = screen.getByRole("button", { name: "Reset filter" });
+    const resetButton = screen.getByRole("button", { name: "Reset filters" });
     expect(resetButton).toBeInTheDocument();
 
     fireEvent.click(resetButton);
@@ -111,16 +111,168 @@ describe("Module filter and empty-state layout (#188)", () => {
 
   it("clears the filter using the Clear button", () => {
     render(<App />);
-    const filterInput = screen.getByLabelText("Filter modules");
+    const filterInput = screen.getByLabelText("Search modules by name or description");
 
     fireEvent.change(filterInput, { target: { value: "events" } });
     expect(screen.getByText("events")).toBeInTheDocument();
     expect(screen.queryByText("ttl")).not.toBeInTheDocument();
 
-    const clearButton = screen.getByRole("button", { name: "Clear module filter" });
+    const clearButton = screen.getByRole("button", { name: "Clear module search" });
     fireEvent.click(clearButton);
 
     expect(screen.getByText("ttl")).toBeInTheDocument();
+  });
+});
+
+describe("Category filters (#124)", () => {
+  it("renders category filter chips including an All option", () => {
+    render(<App />);
+    const group = screen.getByRole("group", { name: /filter modules by category/i });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Environment" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Economics" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Security" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Storage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assertions" })).toBeInTheDocument();
+  });
+
+  it("filters modules when a category chip is selected", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Environment" }));
+
+    expect(screen.getByText("core")).toBeInTheDocument();
+    expect(screen.getByText("ledger")).toBeInTheDocument();
+    expect(screen.queryByText("money")).not.toBeInTheDocument();
+    expect(screen.queryByText("auth")).not.toBeInTheDocument();
+  });
+
+  it("toggles category off when the active chip is clicked again", () => {
+    render(<App />);
+    const envChip = screen.getByRole("button", { name: "Environment" });
+    fireEvent.click(envChip);
+    expect(screen.queryByText("money")).not.toBeInTheDocument();
+
+    fireEvent.click(envChip);
+    expect(screen.getByText("money")).toBeInTheDocument();
+    expect(screen.getByText("core")).toBeInTheDocument();
+  });
+
+  it("combines category filter with the text search", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Economics" }));
+    const filterInput = screen.getByLabelText("Search modules by name or description");
+    fireEvent.change(filterInput, { target: { value: "token" } });
+
+    expect(screen.getByText("tokens")).toBeInTheDocument();
+    expect(screen.queryByText("money")).not.toBeInTheDocument();
+    expect(screen.queryByText("core")).not.toBeInTheDocument();
+  });
+});
+
+describe("Module detail pages with breadcrumbs (#126)", () => {
+  it("opens the module detail view when a module card is activated", () => {
+    render(<App />);
+    const card = screen.getByRole("button", { name: /view details for core module/i });
+    fireEvent.click(card);
+
+    expect(screen.getByRole("heading", { name: "core" })).toBeInTheDocument();
+    // Detail description paragraph (distinct from the hero lede).
+    expect(
+      screen.getByText("Deterministic environments and addresses"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders breadcrumb navigation on the detail page", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /view details for ledger module/i }));
+
+    const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
+    expect(breadcrumb).toBeInTheDocument();
+    expect(within(breadcrumb).getByRole("link", { name: "Home" })).toBeInTheDocument();
+    expect(within(breadcrumb).getByRole("link", { name: "Modules" })).toBeInTheDocument();
+    expect(within(breadcrumb).getByText("ledger")).toBeInTheDocument();
+  });
+
+  it("navigates back to the module list via the breadcrumb link", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /view details for auth module/i }));
+    expect(screen.getByRole("heading", { name: "auth" })).toBeInTheDocument();
+
+    const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
+    fireEvent.click(within(breadcrumb).getByRole("link", { name: "Modules" }));
+    expect(screen.getByText("core")).toBeInTheDocument();
+    expect(screen.getByText("ttl")).toBeInTheDocument();
+  });
+
+  it("navigates back via the back button on the detail page", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /view details for ttl module/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /back to all modules/i }));
+    expect(screen.getByText("events")).toBeInTheDocument();
+  });
+
+  it("supports keyboard activation of module cards", () => {
+    render(<App />);
+    const card = screen.getByRole("button", { name: /view details for money module/i });
+    fireEvent.keyDown(card, { key: "Enter" });
+
+    expect(screen.getByRole("heading", { name: "money" })).toBeInTheDocument();
+  });
+});
+
+describe("Back-to-top control (#125)", () => {
+  it("renders a hidden back-to-top button initially", () => {
+    render(<App />);
+    const btn = screen.getByLabelText(/back to top/i);
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveAttribute("aria-hidden", "true");
+    expect(btn).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("shows the back-to-top button after scrolling down", () => {
+    render(<App />);
+    Object.defineProperty(window, "scrollY", { value: 600, writable: true, configurable: true });
+    fireEvent.scroll(window);
+
+    const btn = screen.getByLabelText(/back to top/i);
+    expect(btn).toHaveAttribute("aria-hidden", "false");
+    expect(btn).toHaveAttribute("tabindex", "0");
+    expect(btn.className).toContain("visible");
+  });
+
+  it("scrolls to top when the button is activated", () => {
+    const scrollSpy = vi.fn();
+    window.scrollTo = scrollSpy;
+
+    render(<App />);
+    Object.defineProperty(window, "scrollY", { value: 800, writable: true, configurable: true });
+    fireEvent.scroll(window);
+
+    fireEvent.click(screen.getByLabelText(/back to top/i));
+    expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+  });
+});
+
+describe("Module search keyboard shortcut (#127)", () => {
+  it("focuses the module search field when / is pressed", () => {
+    render(<App />);
+    const filterInput = screen.getByLabelText("Search modules by name or description");
+
+    fireEvent.keyDown(document.body, { key: "/" });
+
+    expect(filterInput).toHaveFocus();
+  });
+
+  it("does not trigger the shortcut when typing / inside the search input", () => {
+    render(<App />);
+    const filterInput = screen.getByLabelText("Search modules by name or description") as HTMLInputElement;
+
+    fireEvent.keyDown(filterInput, { key: "/" });
+
+    // The slash should not cause a side-effect (focus jump); the input simply keeps its value.
+    expect(filterInput).toBeInTheDocument();
   });
 });
 

@@ -1,9 +1,11 @@
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildCommand,
   formatCommandLine,
   modules,
+  moduleCategories,
   type CommandName,
+  type ModuleCategory,
   type OptionalArgKey,
 } from "./testkit";
 import { copyToClipboard } from "./clipboard";
@@ -201,6 +203,9 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
   const [moduleFilter, setModuleFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<ModuleCategory | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [coverageOrder, setCoverageOrder] = useState<OptionalArgKey[]>(defaultCoverageOrder);
   const [multilineEditor, setMultilineEditor] = useState(false);
   const [advancedCommand, setAdvancedCommand] = useState("");
@@ -213,7 +218,14 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
+      if (!event.ctrlKey && !event.metaKey) {
+        // "/" focuses the module search field (#127)
+        if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement)?.tagName ?? "")) {
+          event.preventDefault();
+          document.getElementById("module-search")?.focus();
+        }
+        return;
+      }
 
       switch (event.key) {
         case "1":
@@ -277,12 +289,29 @@ export default function App() {
 
   const filteredModules = useMemo(() => {
     const q = moduleFilter.trim().toLowerCase();
-    if (!q) return modules;
-    return modules.filter(
-      ([name, description]) =>
-        name.toLowerCase().includes(q) || description.toLowerCase().includes(q)
-    );
-  }, [moduleFilter]);
+    return modules.filter((m) => {
+      if (categoryFilter && m.category !== categoryFilter) return false;
+      if (!q) return true;
+      return m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q);
+    });
+  }, [moduleFilter, categoryFilter]);
+
+  const selectedModuleData = useMemo(
+    () => (selectedModule ? modules.find((m) => m.name === selectedModule) ?? null : null),
+    [selectedModule],
+  );
+
+  // Back-to-top visibility after long scrolling (#125)
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 480);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("top")?.focus?.();
+  }, []);
 
   const moveOptionalArg = (key: OptionalArgKey, direction: "up" | "down") => {
     setCoverageOrder((current) => {
@@ -486,60 +515,167 @@ export default function App() {
       </section>
 
       <section className="modules" id="modules">
-        <header>
-          <p className="eyebrow">One prelude. Seven focused modules.</p>
-          <h2>Everything a serious contract test needs.</h2>
-          <div className="module-filter-bar">
-            <label htmlFor="module-search" className="sr-only">
-              Filter modules
-            </label>
-            <input
-              id="module-search"
-              type="search"
-              className="module-filter-input"
-              placeholder="Filter modules by name or description..."
-              value={moduleFilter}
-              onChange={(event) => setModuleFilter(event.target.value)}
-              aria-label="Filter modules"
-            />
-            {moduleFilter && (
+        {selectedModuleData ? (
+          /* Module detail view with breadcrumbs (#126) */
+          <div className="module-detail">
+            <nav className="breadcrumb" aria-label="Breadcrumb">
+              <ol>
+                <li>
+                  <a
+                    href="#top"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedModule(null);
+                      document.getElementById("top")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  >
+                    Home
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#modules"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedModule(null);
+                    }}
+                  >
+                    Modules
+                  </a>
+                </li>
+                <li>
+                  <span aria-current="page">{selectedModuleData.name}</span>
+                </li>
+              </ol>
+            </nav>
+            <header>
+              <p className="eyebrow">{selectedModuleData.category} module</p>
+              <h2>{selectedModuleData.name}</h2>
+            </header>
+            <div className="module-detail-body">
+              <p className="module-detail-description">{selectedModuleData.description}</p>
+              <p>
+                Import <code>{selectedModuleData.name}</code> from the{" "}
+                <code>soroban_testkit</code> prelude in your contract tests. See the{" "}
+                <a
+                  href="https://github.com/soroban-testkit/testkit-blockchain"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  testkit-blockchain
+                </a>{" "}
+                repository for full API documentation and examples.
+              </p>
               <button
                 type="button"
-                className="module-filter-clear"
-                onClick={() => setModuleFilter("")}
-                aria-label="Clear module filter"
+                className="button secondary"
+                onClick={() => setSelectedModule(null)}
               >
-                Clear
+                ← Back to all modules
               </button>
-            )}
-          </div>
-        </header>
-
-        {filteredModules.length > 0 ? (
-          <div className="module-grid" id="module-grid">
-            {filteredModules.map(([name, description], index) => (
-              <article key={name}>
-                <span>0{index + 1}</span>
-                <h3>{name}</h3>
-                <p>{description}</p>
-              </article>
-            ))}
+            </div>
           </div>
         ) : (
-          <div className="module-empty-state" role="status" aria-live="polite">
-            <div className="module-empty-icon" aria-hidden="true">
-              ∅
-            </div>
-            <h3>No modules match &ldquo;{moduleFilter}&rdquo;</h3>
-            <p>No testing modules found matching your filter criteria. Try adjusting your search term.</p>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => setModuleFilter("")}
-            >
-              Reset filter
-            </button>
-          </div>
+          <>
+            <header>
+              <p className="eyebrow">One prelude. Seven focused modules.</p>
+              <h2>Everything a serious contract test needs.</h2>
+              <div className="module-filter-bar">
+                <label htmlFor="module-search" className="sr-only">
+                  Search modules by name or description
+                </label>
+                <input
+                  id="module-search"
+                  type="search"
+                  className="module-filter-input"
+                  placeholder="Search modules by name or description… (press /)"
+                  value={moduleFilter}
+                  onChange={(event) => setModuleFilter(event.target.value)}
+                  aria-label="Search modules by name or description"
+                />
+                {moduleFilter && (
+                  <button
+                    type="button"
+                    className="module-filter-clear"
+                    onClick={() => setModuleFilter("")}
+                    aria-label="Clear module search"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="category-filter-bar" role="group" aria-label="Filter modules by category">
+                <button
+                  type="button"
+                  className={`category-chip ${categoryFilter === null ? "active" : ""}`}
+                  onClick={() => setCategoryFilter(null)}
+                  aria-pressed={categoryFilter === null}
+                >
+                  All
+                </button>
+                {moduleCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`category-chip ${categoryFilter === cat ? "active" : ""}`}
+                    onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                    aria-pressed={categoryFilter === cat}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            {filteredModules.length > 0 ? (
+              <div className="module-grid" id="module-grid">
+                {filteredModules.map((mod, index) => (
+                  <article
+                    key={mod.name}
+                    className="module-card"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View details for ${mod.name} module`}
+                    onClick={() => setSelectedModule(mod.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedModule(mod.name);
+                      }
+                    }}
+                  >
+                    <span>0{index + 1}</span>
+                    <h3>{mod.name}</h3>
+                    <p>{mod.description}</p>
+                    <span className="module-category-tag">{mod.category}</span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="module-empty-state" role="status" aria-live="polite">
+                <div className="module-empty-icon" aria-hidden="true">
+                  ∅
+                </div>
+                <h3>No modules match your filters</h3>
+                <p>
+                  {moduleFilter
+                    ? `No testing modules found matching “${moduleFilter}”${categoryFilter ? ` in ${categoryFilter}` : ""}.`
+                    : `No testing modules in the ${categoryFilter} category.`}
+                  {" "}Try adjusting your filters.
+                </p>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    setModuleFilter("");
+                    setCategoryFilter(null);
+                  }}
+                >
+                  Reset filters
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -1184,6 +1320,18 @@ export default function App() {
         <span>Built for the Stellar developer ecosystem.</span>
         <span>Apache-2.0</span>
       </footer>
+
+      {/* Back-to-top control (#125) */}
+      <button
+        type="button"
+        className={`back-to-top ${showBackToTop ? "visible" : ""}`}
+        onClick={scrollToTop}
+        aria-label="Back to top"
+        tabIndex={showBackToTop ? 0 : -1}
+        aria-hidden={!showBackToTop}
+      >
+        ↑ Top
+      </button>
     </main>
   );
 }

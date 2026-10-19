@@ -88,15 +88,29 @@ export const configPresets: ConfigPreset[] = [
   },
 ];
 
-export const modules = [
-  ["core", "Deterministic environments and addresses"],
-  ["ledger", "Time, sequence, and clock control"],
-  ["money", "Adversarial values and conservation checks"],
-  ["events", "Typed capture and event assertions"],
-  ["tokens", "Stellar Asset Contract test doubles"],
-  ["auth", "Privilege and authorization matrices"],
-  ["ttl", "Storage lifetime and expiry simulation"],
+export const moduleCategories = [
+  "Environment",
+  "Economics",
+  "Assertions",
+  "Security",
+  "Storage",
 ] as const;
+
+export type ModuleCategory = (typeof moduleCategories)[number];
+
+export const modules: ReadonlyArray<{
+  name: string;
+  description: string;
+  category: ModuleCategory;
+}> = [
+  { name: "core", description: "Deterministic environments and addresses", category: "Environment" },
+  { name: "ledger", description: "Time, sequence, and clock control", category: "Environment" },
+  { name: "money", description: "Adversarial values and conservation checks", category: "Economics" },
+  { name: "events", description: "Typed capture and event assertions", category: "Assertions" },
+  { name: "tokens", description: "Stellar Asset Contract test doubles", category: "Economics" },
+  { name: "auth", description: "Privilege and authorization matrices", category: "Security" },
+  { name: "ttl", description: "Storage lifetime and expiry simulation", category: "Storage" },
+];
 
 const quote = (value: string) => (value.includes(" ") ? `"${value}"` : value);
 

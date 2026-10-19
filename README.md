@@ -58,7 +58,10 @@ This workflow is useful for exploring the exact resource ceiling of auth-heavy o
 ## Features
 
 - **Design System & Theme Tokens**: Comprehensive CSS custom property scale (`:root`) standardizing color schemes (canvas, surfaces, accent, text hierarchy, borders) and spacing increments.
-- **Module Filter & Empty State**: Search and filter testing modules by name or description with real-time feedback and an accessible empty-state layout with quick filter reset.
+- **Module Search**: Search testing modules by name or description with real-time feedback and an accessible empty-state layout with quick filter reset. Press `/` anywhere to jump to the search field.
+- **Category Filters**: Filter the module directory by category (Environment, Economics, Assertions, Security, Storage) using keyboard-accessible chips that combine with the text search.
+- **Module Detail Pages**: Activate a module card (click or keyboard) to open a dedicated detail view with breadcrumb navigation (Home / Modules / module) and a clear path back to the directory.
+- **Back-to-Top Control**: A keyboard-accessible back-to-top button appears after scrolling and smoothly returns to the page header.
 - **Responsive & Reduced-Width Navigation**: Accessible navigation layout supporting truncated and responsive labels without overflowing viewport on mobile or narrow screens.
 - **Required vs. Optional Setting Distinction**: Visual badges (`Required` / `Optional`) and `aria-required` attributes in the CLI workbench distinguishing mandatory parameters from optional configuration flags.
 - **Optional Argument Reordering**: Coverage and audit options can be reordered with keyboard-accessible up/down controls so advanced users can put the most important flags first.
