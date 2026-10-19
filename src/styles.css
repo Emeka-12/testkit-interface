@@ -262,13 +262,33 @@ input:focus, select:focus { border-color: var(--color-accent); }
 footer { display: flex; justify-content: space-between; padding: 34px var(--page-padding); border-top: 1px solid var(--color-border-subtle); color: var(--color-text-muted); font-size: .78rem; }
 
 /* Responsive adjustments */
+
+/* Issue #184: Large-text layout check for hero section */
+@media (min-width: 1200px) {
+  .hero h1 { font-size: 6rem; line-height: .98; }
+  .hero .lede { font-size: 1.2rem; line-height: 1.8; }
+}
+
+/* Issue #182: Compact two-column module layout for tablet widths */
+@media (min-width: 601px) and (max-width: 900px) {
+  .module-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 900px) {
   .hero, .commands { grid-template-columns: 1fr; }
   .hero { padding-top: 70px; }
-  .module-grid { grid-template-columns: repeat(2, 1fr); }
-  .nav-links a { max-width: 140px; }
 }
 
+/* Issue #183: Landscape phone layout for command form */
+@media (min-width: 541px) and (max-width: 900px) and (max-height: 600px) {
+  .commands { padding: 60px var(--page-padding); }
+  .builder { padding: var(--space-3xl); }
+  label { margin-bottom: var(--space-lg); gap: var(--space-xs); }
+  .command-tabs { margin-top: var(--space-3xl); }
+  .description { min-height: 36px; font-size: .9rem; }
+}
+
+/* Issue #180: Prevent navigation links from wrapping awkwardly on small screens */
 @media (max-width: 600px) {
   nav {
     height: auto;
@@ -278,11 +298,15 @@ footer { display: flex; justify-content: space-between; padding: 34px var(--page
     gap: var(--space-md);
   }
   .nav-links {
-    gap: var(--space-md);
+    width: 100%;
+    justify-content: flex-start;
+    gap: clamp(var(--space-lg), 4vw, var(--space-3xl));
     font-size: .85rem;
-    flex-wrap: wrap;
   }
-  .nav-links a { max-width: 120px; }
+  .nav-links a {
+    flex: 0 1 auto;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 540px) {
