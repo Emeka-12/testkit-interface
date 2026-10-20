@@ -230,6 +230,27 @@ describe("Soroban workflow documentation and prerequisites", () => {
   });
 });
 
+describe("Limits command reference (#92)", () => {
+  it("documents the ready-to-run command, arguments, defaults, and offline behavior", () => {
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: /resource limits, at a glance/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("Resource limits command example")).toHaveTextContent("soroban-testkit limits");
+    expect(screen.getByText("--contract")).toBeInTheDocument();
+    expect(screen.getByText("--fn")).toBeInTheDocument();
+    expect(screen.getByText("--ramp")).toBeInTheDocument();
+    expect(screen.getByText(/runs offline/i)).toBeInTheDocument();
+  });
+
+  it("exposes the reference as a focusable navigation target", () => {
+    render(<App />);
+
+    const link = screen.getByRole("link", { name: "Limits reference" });
+    expect(link).toHaveAttribute("href", "#limits-reference");
+    expect(document.getElementById("limits-reference")).toHaveAttribute("tabindex", "-1");
+  });
+});
+
 describe("Audit workflow prerequisites checklist (#91)", () => {
   it("lets a user check off audit prerequisites, each with its own accessible name", () => {
     render(<App />);
@@ -479,7 +500,7 @@ describe("Screen reader semantics (#108)", () => {
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^Copy$/ }));
 
     const announcement = await screen.findByText("Command copied to clipboard");
     expect(announcement).toHaveAttribute("aria-live", "polite");

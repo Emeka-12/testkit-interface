@@ -5,15 +5,18 @@ import {
   modules,
   type CommandName,
   type OptionalArgKey,
+  localFileGuides,
 } from "./testkit";
 import { copyToClipboard } from "./clipboard";
 import { CORE_REPO_URL, INSTALL_GUIDE_URL, INTERFACE_REPO_URL } from "./links";
 import { useActiveSection } from "./useActiveSection";
+import "./styles.css";
 
 const navSections = [
   { id: "install", label: "Install" },
   { id: "modules", label: "Modules" },
   { id: "commands", label: "Commands" },
+  { id: "limits-reference", label: "Limits reference" },
 ] as const;
 const navSectionIds = navSections.map((section) => section.id);
 
@@ -255,6 +258,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
 
   useEffect(() => {
+    document.documentElement.style.scrollPaddingTop = "78px";
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!event.ctrlKey && !event.metaKey) return;
 
@@ -270,6 +274,9 @@ export default function App() {
           break;
         case "4":
           document.getElementById("commands")?.scrollIntoView({ behavior: "smooth" });
+          break;
+        case "5":
+          document.getElementById("limits-reference")?.scrollIntoView({ behavior: "smooth" });
           break;
       }
     };
@@ -1288,6 +1295,46 @@ export default function App() {
             </div>
           )}
         </article>
+
+        <section
+          className="command-reference"
+          id="limits-reference"
+          tabIndex={-1}
+          aria-labelledby="limits-reference-heading"
+        >
+          <div className="reference-header">
+            <p className="eyebrow">Command reference</p>
+            <h2 id="limits-reference-heading">Resource limits, at a glance.</h2>
+            <p>
+              Use <code>soroban-testkit limits</code> to ramp one contract input until the local WASM
+              execution reaches its practical resource ceiling. The command is read-only and runs offline.
+            </p>
+          </div>
+          <div className="reference-grid">
+            <article className="reference-card">
+              <h3>Ready-to-run command</h3>
+              <pre aria-label="Resource limits command example"><code>{"soroban-testkit limits \\\n  --contract target/wasm32v1-none/release/contract.wasm \\\n  --fn batch_payout \\\n  --ramp recipients"}</code></pre>
+              <p>Replace the function and ramp names with exported contract inputs from your ABI.</p>
+            </article>
+            <article className="reference-card">
+              <h3>Arguments</h3>
+              <dl className="reference-arguments">
+                <div><dt><code>--contract</code></dt><dd>Compiled WASM artifact. Defaults to <code>{localFileGuides.limits.defaultPath}</code>.</dd></div>
+                <div><dt><code>--fn</code></dt><dd>Exported function to probe. Defaults to <code>batch_payout</code>.</dd></div>
+                <div><dt><code>--ramp</code></dt><dd>Input parameter to increase. Defaults to <code>recipients</code>.</dd></div>
+              </dl>
+            </article>
+            <article className="reference-card">
+              <h3>Before you run it</h3>
+              <ol>
+                <li>Build the contract for <code>wasm32v1-none</code> in release mode.</li>
+                <li>Confirm the function is exported and the ramp input is accepted.</li>
+                <li>Read the instruction and memory ceilings printed to stdout.</li>
+              </ol>
+              <p className="reference-note">Reads: local WASM and export metadata. Writes: none.</p>
+            </article>
+          </div>
+        </section>
       </section>
 
       <footer>
