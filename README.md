@@ -4,70 +4,18 @@ A visual companion to [Soroban Testkit](https://github.com/soroban-testkit/testk
 
 The interface does not execute contracts in the browser. Generated commands run locally through `soroban-testkit`, keeping contract tests deterministic and offline as required by the core project.
 
-## Supported Rust and Soroban prerequisites
-
-The interface targets the current supported ecosystem for local Soroban development and contract validation:
-
-- Rust >= 1.84 with the `wasm32v1-none` target installed.
-- `soroban-sdk` 27.0.x for current contract builds and tests.
-- `stellar-cli` >= 22.0.0 for local contract inspection and deployment workflows.
-- Cargo workspace layout with explicit workspace members and a stable resolver.
-
-## Workflow tutorials
-
-### 1) Complete coverage workflow
-
-Use the coverage workflow from the project root, then export an HTML or LCOV report for review:
-
-```sh
-cargo llvm-cov --workspace --all-features --html
-cargo llvm-cov --workspace --lcov --output-path lcov.info
-```
-
-This is the recommended local path for contract coverage before shipping a Soroban change.
-
-### 2) Cargo workspace layout example
-
-A simple workspace keeps shared dependencies and contract crates organized:
-
-```toml
-[workspace]
-members = [
-  "contracts/asset",
-  "contracts/escrow",
-  "contracts/auction",
-]
-resolver = "2"
-```
-
-This keeps each contract module isolated while making the root workspace easy to test, cover, and audit.
-
-### 3) Resource limits workflow
-
-When validating a contract's practical ceiling, compile the WASM artifact and sweep the target function with the limit ramp:
-
-```sh
-soroban-testkit limits \
-  --contract target/wasm32v1-none/release/contract.wasm \
-  --fn batch_payout \
-  --ramp recipients
-```
-
-This workflow is useful for exploring the exact resource ceiling of auth-heavy or high-volume entrypoints.
-
 ## Features
 
 - **Design System & Theme Tokens**: Comprehensive CSS custom property scale (`:root`) standardizing color schemes (canvas, surfaces, accent, text hierarchy, borders) and spacing increments.
-- **Module Search**: Search testing modules by name or description with real-time feedback and an accessible empty-state layout with quick filter reset. Press `/` anywhere to jump to the search field.
-- **Category Filters**: Filter the module directory by category (Environment, Economics, Assertions, Security, Storage) using keyboard-accessible chips that combine with the text search.
-- **Module Detail Pages**: Activate a module card (click or keyboard) to open a dedicated detail view with breadcrumb navigation (Home / Modules / module) and a clear path back to the directory.
-- **Back-to-Top Control**: A keyboard-accessible back-to-top button appears after scrolling and smoothly returns to the page header.
-- **Responsive & Reduced-Width Navigation**: Accessible navigation layout supporting truncated and responsive labels without overflowing viewport on mobile or narrow screens.
+- **Module Filter & Empty State**: Search and filter testing modules by name or description with real-time feedback and an accessible empty-state layout with quick filter reset.
+- **Responsive Layout Enhancements**:
+  - **Large-text Hero Layout**: Enhanced typography scaling at 1200px+ viewports for improved readability on large displays.
+  - **Improved Navigation**: Prevents link wrapping on small screens with optimized spacing and flexible layouts.
+  - **Tablet Two-Column Grid**: Compact two-column module layout for tablet widths (601px-900px) for better space utilization.
+  - **Landscape Phone Optimization**: Condensed command form layout for landscape phone orientations (541px-900px width, max 600px height).
 - **Required vs. Optional Setting Distinction**: Visual badges (`Required` / `Optional`) and `aria-required` attributes in the CLI workbench distinguishing mandatory parameters from optional configuration flags.
-- **Optional Argument Reordering**: Coverage and audit options can be reordered with keyboard-accessible up/down controls so advanced users can put the most important flags first.
-- **Safe Reset Confirmation**: Resetting the command builder asks for explicit confirmation before restoring defaults, preventing accidental form resets.
-- **Contextual Input Guidance**: Function and ramp fields include inline help text explaining what each value should look like in real contract workflows.
-- **Multiline Advanced Editor**: A dedicated multiline editor lets power users review or paste full command snippets and apply them back into the workbench.
+- **Audit workflow support**: An expandable, keyboard-accessible preflight checklist, strict-mode control, and advanced multiline command editor help users prepare and reproduce source audits.
+- **Limits command reference**: A standalone reference explains the ready-to-run limits command, its `--contract`, `--fn`, and `--ramp` arguments, defaults, and offline/read-only behavior.
 
 ## Development
 

@@ -7,8 +7,32 @@ import {
   type CommandName,
   type ModuleCategory,
   type OptionalArgKey,
+  localFileGuides,
 } from "./testkit";
 import { copyToClipboard } from "./clipboard";
+import { CORE_REPO_URL, INSTALL_GUIDE_URL, INTERFACE_REPO_URL } from "./links";
+import { useActiveSection } from "./useActiveSection";
+import "./styles.css";
+
+const navSections = [
+  { id: "install", label: "Install" },
+  { id: "modules", label: "Modules" },
+  { id: "commands", label: "Commands" },
+  { id: "limits-reference", label: "Limits reference" },
+] as const;
+const navSectionIds = navSections.map((section) => section.id);
+
+// Which CLI workflows are most useful for each module (#130). Keyed by module
+// name so adding a module without a mapping fails type-checking.
+const moduleRelatedWorkflows: Record<(typeof modules)[number][0], CommandName[]> = {
+  core: ["coverage"],
+  ledger: ["audit"],
+  money: ["audit", "limits"],
+  events: ["coverage"],
+  tokens: ["limits"],
+  auth: ["audit"],
+  ttl: ["audit"],
+};
 
 const descriptions: Record<CommandName, string> = {
   coverage: "Generate contract-test coverage through cargo-llvm-cov.",
@@ -94,6 +118,15 @@ const installationSteps = [
     description: "Build and install the testkit command",
     command: "cargo install --path testkit-blockchain/crates/cli",
   },
+];
+
+// Things worth confirming before running an audit scan (#91). Local-only
+// checklist state; nothing here is persisted or sent anywhere.
+const auditPrerequisites = [
+  { id: "rust", label: "Rust toolchain installed via rustup" },
+  { id: "wasm-target", label: "wasm32v1-none compilation target added" },
+  { id: "testkit-cli", label: "Testkit CLI installed and on your PATH" },
+  { id: "builds-clean", label: "Contract builds without warnings before scanning" },
 ];
 
 function summarizeConfiguration(options: CommandOptions): SummaryRow[] {
@@ -202,10 +235,18 @@ export default function App() {
   const [shell, setShell] = useState<"bash" | "zsh" | "fish" | "sh">("bash");
   const [copied, setCopied] = useState(false);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
+  // Copy buttons change their label, which screen readers often skip; this
+  // polite live region announces the result explicitly (#108).
+  const [announcement, setAnnouncement] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<ModuleCategory | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+  const moduleSearchRef = useRef<HTMLInputElement>(null);
+
+  // Resetting from the empty state removes the button that had focus, so move
+  // focus back to the search box instead of dropping it to <body> (#123).
+  const resetModuleFilter = () => {
+    setModuleFilter("");
+    moduleSearchRef.current?.focus();
+  };
   const [coverageOrder, setCoverageOrder] = useState<OptionalArgKey[]>(defaultCoverageOrder);
   const [multilineEditor, setMultilineEditor] = useState(false);
   const [advancedCommand, setAdvancedCommand] = useState("");
@@ -214,9 +255,12 @@ export default function App() {
   const [configB, setConfigB] = useState<CommandOptions | null>(null);
   const [coverageGuideOpen, setCoverageGuideOpen] = useState(false);
   const [auditGuideOpen, setAuditGuideOpen] = useState(false);
+  const [checkedPrerequisites, setCheckedPrerequisites] = useState<Record<string, boolean>>({});
   const comparePanelRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
 
   useEffect(() => {
+    document.documentElement.style.scrollPaddingTop = "78px";
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!event.ctrlKey && !event.metaKey) {
         // "/" focuses the module search field (#127)
@@ -239,6 +283,9 @@ export default function App() {
           break;
         case "4":
           document.getElementById("commands")?.scrollIntoView({ behavior: "smooth" });
+          break;
+        case "5":
+          document.getElementById("limits-reference")?.scrollIntoView({ behavior: "smooth" });
           break;
       }
     };
@@ -379,13 +426,21 @@ export default function App() {
   const copy = async () => {
     await copyToClipboard(generated);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    setAnnouncement("Command copied to clipboard");
+    window.setTimeout(() => {
+      setCopied(false);
+      setAnnouncement("");
+    }, 1600);
   };
 
   const copyStep = async (index: number, stepCommand: string) => {
     await copyToClipboard(stepCommand);
     setCopiedStep(index);
-    window.setTimeout(() => setCopiedStep(null), 1600);
+    setAnnouncement(`Step ${index + 1} command copied to clipboard`);
+    window.setTimeout(() => {
+      setCopiedStep(null);
+      setAnnouncement("");
+    }, 1600);
   };
 
   const toggleComparison = () => {
@@ -427,20 +482,34 @@ export default function App() {
 
   return (
     <main>
-      <nav>
+      <a className="skip-link" href="#top">
+        Skip to main content
+      </a>
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
+      <nav aria-label="Main navigation">
         <a className="brand" href="#top" aria-label="Soroban Testkit home">
           <span className="brand-mark">S</span>
           <span>Soroban Testkit</span>
         </a>
-        <div className="nav-links" aria-label="Main navigation">
-          <a href="#install">Install</a>
-          <a href="#modules">Modules</a>
-          <a href="#commands">Commands</a>
+        <div className="nav-links">
+          {navSections.map((section) => (
+            <a
+              key={section.id}
+              href={`#${section.id}`}
+              aria-current={activeSection === section.id ? "location" : undefined}
+              onClick={() => setActiveSection(section.id)}
+              onFocus={() => setActiveSection(section.id)}
+            >
+              {section.label}
+            </a>
+          ))}
           <a href="https://github.com/soroban-testkit/testkit-blockchain">GitHub ↗</a>
         </div>
       </nav>
 
-      <section className="hero" id="top">
+      <section className="hero" id="top" tabIndex={-1}>
         <div>
           <p className="eyebrow">Contract testing, without the repeated scaffolding</p>
           <h1>
@@ -460,12 +529,18 @@ export default function App() {
               Explore modules
             </a>
           </div>
+          <p className="repo-callout">
+            <a className="repo-link" href={INTERFACE_REPO_URL}>
+              View this interface on GitHub <span aria-hidden="true">↗</span>
+            </a>
+            <span className="repo-callout-note">Open source — report issues or contribute to the interface.</span>
+          </p>
         </div>
-        <div className="terminal" aria-label="Example Soroban test">
+        <div className="terminal" role="region" aria-label="Example Soroban test">
           <div className="terminal-top">
-            <i />
-            <i />
-            <i />
+            <i aria-hidden="true" />
+            <i aria-hidden="true" />
+            <i aria-hidden="true" />
             <span>escrow_test.rs</span>
           </div>
           <pre>
@@ -478,11 +553,11 @@ export default function App() {
               token.assert_balance(&buyer, <b>100</b>);
             </code>
           </pre>
-          <div className="pass">✓ test result: ok</div>
+          <div className="pass" aria-label="test result: ok">✓ test result: ok</div>
         </div>
       </section>
 
-      <section className="install" id="install" aria-labelledby="install-heading">
+      <section className="install" id="install" aria-labelledby="install-heading" tabIndex={-1}>
         <header>
           <p className="eyebrow">First-time setup</p>
           <h2 id="install-heading">From a clean machine to your first command.</h2>
@@ -512,60 +587,37 @@ export default function App() {
             </li>
           ))}
         </ol>
+        <aside className="install-guide" aria-labelledby="install-guide-heading">
+          <h3 id="install-guide-heading">Full installation instructions</h3>
+          <p>
+            Need crates.io installs, workspace checkouts, or a clean-environment check? The core repository keeps the
+            complete, up-to-date installation guide.
+          </p>
+          <a className="button secondary" href={INSTALL_GUIDE_URL}>
+            Read the installation guide <span aria-hidden="true">↗</span>
+          </a>
+        </aside>
       </section>
 
-      <section className="modules" id="modules">
-        {selectedModuleData ? (
-          /* Module detail view with breadcrumbs (#126) */
-          <div className="module-detail">
-            <nav className="breadcrumb" aria-label="Breadcrumb">
-              <ol>
-                <li>
-                  <a
-                    href="#top"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setSelectedModule(null);
-                      document.getElementById("top")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                  >
-                    Home
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#modules"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setSelectedModule(null);
-                    }}
-                  >
-                    Modules
-                  </a>
-                </li>
-                <li>
-                  <span aria-current="page">{selectedModuleData.name}</span>
-                </li>
-              </ol>
-            </nav>
-            <header>
-              <p className="eyebrow">{selectedModuleData.category} module</p>
-              <h2>{selectedModuleData.name}</h2>
-            </header>
-            <div className="module-detail-body">
-              <p className="module-detail-description">{selectedModuleData.description}</p>
-              <p>
-                Import <code>{selectedModuleData.name}</code> from the{" "}
-                <code>soroban_testkit</code> prelude in your contract tests. See the{" "}
-                <a
-                  href="https://github.com/soroban-testkit/testkit-blockchain"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  testkit-blockchain
-                </a>{" "}
-                repository for full API documentation and examples.
-              </p>
+      <section className="modules" id="modules" tabIndex={-1}>
+        <header>
+          <p className="eyebrow">One prelude. Seven focused modules.</p>
+          <h2>Everything a serious contract test needs.</h2>
+          <div className="module-filter-bar">
+            <label htmlFor="module-search" className="sr-only">
+              Filter modules
+            </label>
+            <input
+              id="module-search"
+              ref={moduleSearchRef}
+              type="search"
+              className="module-filter-input"
+              placeholder="Filter modules by name or description..."
+              value={moduleFilter}
+              onChange={(event) => setModuleFilter(event.target.value)}
+              aria-label="Filter modules"
+            />
+            {moduleFilter && (
               <button
                 type="button"
                 className="button secondary"
@@ -573,7 +625,45 @@ export default function App() {
               >
                 ← Back to all modules
               </button>
+            )}
+          </div>
+        </header>
+
+        {filteredModules.length > 0 ? (
+          <div className="module-grid" id="module-grid">
+            {filteredModules.map(([name, description], index) => (
+              <article key={name}>
+                <span aria-hidden="true">0{index + 1}</span>
+                <h3>{name}</h3>
+                <p>{description}</p>
+                <div className="module-card-links">
+                  <a href="#commands" aria-label={`Open the command builder from the ${name} module`}>
+                    Command builder
+                  </a>
+                  {moduleRelatedWorkflows[name].map((workflow) => (
+                    <a
+                      key={workflow}
+                      href="#commands"
+                      aria-label={`Open the ${workflow} workflow related to ${name}`}
+                      onClick={() => setCommand(workflow)}
+                    >
+                      {workflow}
+                    </a>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="module-empty-state" role="status" aria-live="polite">
+            <div className="module-empty-icon" aria-hidden="true">
+              ∅
             </div>
+            <h3>No modules match &ldquo;{moduleFilter}&rdquo;</h3>
+            <p>No testing modules found matching your filter criteria. Try adjusting your search term.</p>
+            <button type="button" className="button secondary" onClick={resetModuleFilter}>
+              Reset filter
+            </button>
           </div>
         ) : (
           <>
@@ -785,12 +875,12 @@ export default function App() {
         ))}
       </section>
 
-      <section className="commands" id="commands">
+      <section className="commands" id="commands" tabIndex={-1}>
         <div className="command-copy">
           <p className="eyebrow">CLI workbench</p>
           <h2>From intent to command.</h2>
           <p>Configure a supported Testkit workflow and copy the exact command to your terminal.</p>
-          <div className="command-tabs" role="tablist" aria-label="Command workflow selector">
+          <div className="command-tabs" role="group" aria-label="Command workflow selector">
             {(["coverage", "limits", "audit"] as const).map((name) => (
               <button
                 key={name}
@@ -854,7 +944,7 @@ export default function App() {
                   type="button"
                   className="clear-field-button"
                   onClick={() => setPath("")}
-                  aria-label="Clear"
+                  aria-label="Clear project or contract path"
                 >
                   Clear
                 </button>
@@ -944,7 +1034,7 @@ export default function App() {
                       type="button"
                       className="clear-field-button"
                       onClick={() => setFn("")}
-                      aria-label="Clear"
+                      aria-label="Clear function"
                     >
                       Clear
                     </button>
@@ -973,7 +1063,7 @@ export default function App() {
                       type="button"
                       className="clear-field-button"
                       onClick={() => setRamp("")}
-                      aria-label="Clear"
+                      aria-label="Clear ramp parameter"
                     >
                       Clear
                     </button>
@@ -1298,6 +1388,23 @@ export default function App() {
           </div>
           {auditGuideOpen && (
             <div id="audit-guide-panel" className="guide-panel">
+              <fieldset className="audit-prerequisites">
+                <legend>Prerequisites</legend>
+                {auditPrerequisites.map((item) => (
+                  <label key={item.id} className="check">
+                    <span className="check-content">
+                      <input
+                        type="checkbox"
+                        checked={checkedPrerequisites[item.id] ?? false}
+                        onChange={(event) =>
+                          setCheckedPrerequisites((prev) => ({ ...prev, [item.id]: event.target.checked }))
+                        }
+                      />
+                      <span>{item.label}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
               <ol>
                 <li>Point the audit at the contract source directory or workspace root most relevant to the change.</li>
                 <li>
@@ -1314,10 +1421,53 @@ export default function App() {
             </div>
           )}
         </article>
+
+        <section
+          className="command-reference"
+          id="limits-reference"
+          tabIndex={-1}
+          aria-labelledby="limits-reference-heading"
+        >
+          <div className="reference-header">
+            <p className="eyebrow">Command reference</p>
+            <h2 id="limits-reference-heading">Resource limits, at a glance.</h2>
+            <p>
+              Use <code>soroban-testkit limits</code> to ramp one contract input until the local WASM
+              execution reaches its practical resource ceiling. The command is read-only and runs offline.
+            </p>
+          </div>
+          <div className="reference-grid">
+            <article className="reference-card">
+              <h3>Ready-to-run command</h3>
+              <pre aria-label="Resource limits command example"><code>{"soroban-testkit limits \\\n  --contract target/wasm32v1-none/release/contract.wasm \\\n  --fn batch_payout \\\n  --ramp recipients"}</code></pre>
+              <p>Replace the function and ramp names with exported contract inputs from your ABI.</p>
+            </article>
+            <article className="reference-card">
+              <h3>Arguments</h3>
+              <dl className="reference-arguments">
+                <div><dt><code>--contract</code></dt><dd>Compiled WASM artifact. Defaults to <code>{localFileGuides.limits.defaultPath}</code>.</dd></div>
+                <div><dt><code>--fn</code></dt><dd>Exported function to probe. Defaults to <code>batch_payout</code>.</dd></div>
+                <div><dt><code>--ramp</code></dt><dd>Input parameter to increase. Defaults to <code>recipients</code>.</dd></div>
+              </dl>
+            </article>
+            <article className="reference-card">
+              <h3>Before you run it</h3>
+              <ol>
+                <li>Build the contract for <code>wasm32v1-none</code> in release mode.</li>
+                <li>Confirm the function is exported and the ramp input is accepted.</li>
+                <li>Read the instruction and memory ceilings printed to stdout.</li>
+              </ol>
+              <p className="reference-note">Reads: local WASM and export metadata. Writes: none.</p>
+            </article>
+          </div>
+        </section>
       </section>
 
       <footer>
         <span>Built for the Stellar developer ecosystem.</span>
+        <span className="footer-links">
+          <a href={CORE_REPO_URL}>Soroban Testkit core repository</a>
+        </span>
         <span>Apache-2.0</span>
       </footer>
 
