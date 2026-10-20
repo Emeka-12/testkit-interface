@@ -417,3 +417,111 @@ footer { display: flex; justify-content: space-between; padding: 34px var(--page
     transition: none;
   }
 }
+
+/* #117 — mobile nav toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--color-text);
+}
+.mobile-menu-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 768px) {
+  .mobile-menu-toggle { display: block; }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border-subtle);
+    padding: var(--space-md);
+    z-index: 100;
+  }
+  .nav-links[data-open="true"] { display: flex; }
+}
+
+/* #116 — accessibility statement dialog */
+.a11y-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: var(--space-lg);
+}
+.a11y-dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  max-width: 520px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.a11y-dialog h2 { margin-bottom: var(--space-md); }
+.a11y-dialog p, .a11y-dialog ul { margin-bottom: var(--space-md); line-height: 1.6; }
+.a11y-dialog ul { padding-left: 1.2rem; }
+.a11y-dialog li { margin-bottom: var(--space-xs); }
+.footer-a11y-link, .nav-a11y-link {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+  padding: 0;
+}
+.footer-a11y-link:focus-visible, .nav-a11y-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* #118 — module table of contents */
+.module-toc { margin: var(--space-md) 0; }
+.module-toc-toggle {
+  background: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  padding: var(--space-xs) var(--space-md);
+  cursor: pointer;
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+.module-toc-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.module-toc-list {
+  margin-top: var(--space-sm);
+  padding-left: 1.4rem;
+  line-height: 1.8;
+  font-size: 0.9rem;
+}
+.module-toc-list a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+.module-toc-list a:hover { color: var(--color-accent); text-decoration: underline; }
+.module-toc-list a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* #119 — footer changelog link */
+.footer-links {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}

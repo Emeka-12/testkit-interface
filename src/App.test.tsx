@@ -708,3 +708,86 @@ describe("Navigation enhancements (#112, #113, #114, #115)", () => {
     expect(html).toHaveStyle("scroll-padding-top: 78px");
   });
 });
+
+// #117 — mobile navigation menu
+describe("Mobile navigation menu", () => {
+  it("renders the mobile menu toggle button", () => {
+    render(<App />);
+    expect(screen.getByRole("button", { name: /open navigation menu/i })).toBeInTheDocument();
+  });
+
+  it("toggles the mobile menu on click", () => {
+    render(<App />);
+    const toggle = screen.getByRole("button", { name: /open navigation menu/i });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /close navigation menu/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /close navigation menu/i }));
+    expect(screen.getByRole("button", { name: /open navigation menu/i })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("has accessible aria attributes on the toggle", () => {
+    render(<App />);
+    const toggle = screen.getByRole("button", { name: /open navigation menu/i });
+    expect(toggle).toHaveAttribute("aria-controls", "mobile-menu");
+  });
+});
+
+// #118 — module table of contents
+describe("Module table of contents", () => {
+  it("renders the TOC toggle button", () => {
+    render(<App />);
+    expect(screen.getByRole("button", { name: /show table of contents/i })).toBeInTheDocument();
+  });
+
+  it("expands the TOC list on click", () => {
+    render(<App />);
+    const toggle = screen.getByRole("button", { name: /show table of contents/i });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("navigation", { name: /module table of contents/i })).toBeInTheDocument();
+  });
+
+  it("lists all modules in the TOC", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /show table of contents/i }));
+    const tocList = document.getElementById("module-toc-list");
+    expect(tocList).toBeInTheDocument();
+    expect(tocList!.querySelectorAll("li").length).toBeGreaterThan(0);
+  });
+});
+
+// #119 — changelog link in footer
+describe("Footer changelog link", () => {
+  it("renders a changelog link in the footer", () => {
+    render(<App />);
+    const footer = screen.getByRole("contentinfo");
+    const changelogLink = within(footer).getByRole("link", { name: /changelog/i });
+    expect(changelogLink).toHaveAttribute("href", expect.stringContaining("/releases"));
+  });
+});
+
+// #116 — accessibility statement
+describe("Accessibility statement", () => {
+  it("renders the accessibility link in the footer", () => {
+    render(<App />);
+    const footer = screen.getByRole("contentinfo");
+    expect(within(footer).getByRole("button", { name: /accessibility statement/i })).toBeInTheDocument();
+  });
+
+  it("opens the accessibility dialog on click", () => {
+    render(<App />);
+    const footer = screen.getByRole("contentinfo");
+    fireEvent.click(within(footer).getByRole("button", { name: /accessibility statement/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(/accessibility statement/i)).toBeInTheDocument();
+  });
+
+  it("closes the dialog when the close button is clicked", () => {
+    render(<App />);
+    const footer = screen.getByRole("contentinfo");
+    fireEvent.click(within(footer).getByRole("button", { name: /accessibility statement/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
