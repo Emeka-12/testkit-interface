@@ -94,6 +94,24 @@ test.describe("screen reader structure (#108)", () => {
 
     await expect(page.locator('[aria-live="polite"]').filter({ hasText: "Command copied to clipboard" })).toHaveCount(1);
   });
+
+  test("limits example commands are keyboard-focusable in workflow order", async ({ page }) => {
+    await page.goto("/");
+
+    const cloneCommand = page.getByRole("region", { name: "Clone the Sororail contract workspace" });
+    const targetCommand = page.getByRole("region", { name: "Add the wasm32v1-none target" });
+    const buildCommand = page.getByRole("region", { name: "Build the batch-payout contract" });
+    const runCommand = page.getByRole("region", { name: "Run the limits example" });
+
+    await cloneCommand.focus();
+    await expect(cloneCommand).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(targetCommand).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(buildCommand).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(runCommand).toBeFocused();
+  });
 });
 
 // 200% zoom on a 1280px layout is 640 CSS px. WCAG 1.4.10 reflow is 320 CSS px
