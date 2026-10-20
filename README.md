@@ -14,6 +14,8 @@ The interface does not execute contracts in the browser. Generated commands run 
   - **Tablet Two-Column Grid**: Compact two-column module layout for tablet widths (601px-900px) for better space utilization.
   - **Landscape Phone Optimization**: Condensed command form layout for landscape phone orientations (541px-900px width, max 600px height).
 - **Required vs. Optional Setting Distinction**: Visual badges (`Required` / `Optional`) and `aria-required` attributes in the CLI workbench distinguishing mandatory parameters from optional configuration flags.
+- **Audit workflow support**: An expandable, keyboard-accessible preflight checklist, strict-mode control, and advanced multiline command editor help users prepare and reproduce source audits.
+- **Limits command reference**: A standalone reference explains the ready-to-run limits command, its `--contract`, `--fn`, and `--ramp` arguments, defaults, and offline/read-only behavior.
 
 ## Development
 
