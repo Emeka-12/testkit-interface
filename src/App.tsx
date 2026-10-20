@@ -257,6 +257,16 @@ export default function App() {
   const [auditGuideOpen, setAuditGuideOpen] = useState(false);
   const [checkedPrerequisites, setCheckedPrerequisites] = useState<Record<string, boolean>>({});
   const comparePanelRef = useRef<HTMLDivElement>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  // #117 — mobile nav toggle
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  // #118 — module table of contents
+  const [tocOpen, setTocOpen] = useState(false);
+  // #116 — accessibility statement modal
+  const [a11yOpen, setA11yOpen] = useState(false);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
 
   useEffect(() => {
@@ -493,19 +503,34 @@ export default function App() {
           <span className="brand-mark">S</span>
           <span>Soroban Testkit</span>
         </a>
-        <div className="nav-links">
+        {/* #117 — accessible mobile nav toggle */}
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-menu"
+          aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <span aria-hidden="true">{mobileMenuOpen ? "✕" : "☰"}</span>
+        </button>
+        <div className="nav-links" id="mobile-menu" ref={mobileMenuRef} data-open={mobileMenuOpen}>
           {navSections.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
               aria-current={activeSection === section.id ? "location" : undefined}
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => { setActiveSection(section.id); setMobileMenuOpen(false); }}
               onFocus={() => setActiveSection(section.id)}
             >
               {section.label}
             </a>
           ))}
           <a href="https://github.com/soroban-testkit/testkit-blockchain">GitHub ↗</a>
+          {/* #116 — accessibility statement link */}
+          <button type="button" className="nav-a11y-link" onClick={() => { setA11yOpen(true); setMobileMenuOpen(false); }}>
+            Accessibility
+          </button>
         </div>
       </nav>
 
@@ -603,6 +628,35 @@ export default function App() {
         <header>
           <p className="eyebrow">One prelude. Seven focused modules.</p>
           <h2>Everything a serious contract test needs.</h2>
+          {/* #118 — module table of contents */}
+          <nav className="module-toc" aria-label="Module table of contents">
+            <button
+              type="button"
+              className="module-toc-toggle"
+              aria-expanded={tocOpen}
+              aria-controls="module-toc-list"
+              onClick={() => setTocOpen(!tocOpen)}
+            >
+              {tocOpen ? "Hide" : "Show"} table of contents
+            </button>
+            {tocOpen && (
+              <ol id="module-toc-list" className="module-toc-list">
+                {modules.map(([name, description]) => (
+                  <li key={name}>
+                    <a
+                      href={`#module-${name}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById(`module-${name}`)?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    >
+                      <strong>{name}</strong> — {description}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </nav>
           <div className="module-filter-bar">
             <label htmlFor="module-search" className="sr-only">
               Filter modules
@@ -722,6 +776,7 @@ export default function App() {
                 {filteredModules.map((mod, index) => (
                   <article
                     key={mod.name}
+                    id={`module-${mod.name}`}
                     className="module-card"
                     tabIndex={0}
                     role="button"
@@ -1467,9 +1522,42 @@ export default function App() {
         <span>Built for the Stellar developer ecosystem.</span>
         <span className="footer-links">
           <a href={CORE_REPO_URL}>Soroban Testkit core repository</a>
+          {/* #119 — changelog link */}
+          <a href={`${CORE_REPO_URL}/releases`}>Changelog</a>
+          {/* #116 — accessibility statement */}
+          <button type="button" className="footer-a11y-link" onClick={() => setA11yOpen(true)}>
+            Accessibility statement
+          </button>
         </span>
         <span>Apache-2.0</span>
       </footer>
+
+      {/* #116 — accessibility statement dialog */}
+      {a11yOpen && (
+        <div className="a11y-overlay" role="dialog" aria-modal="true" aria-labelledby="a11y-title" onClick={() => setA11yOpen(false)}>
+          <div className="a11y-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 id="a11y-title">Accessibility Statement</h2>
+            <p>
+              The Soroban Testkit Interface is committed to WCAG 2.1 AA compliance. We aim to make every
+              feature keyboard-accessible, screen-reader friendly, and usable across devices.
+            </p>
+            <ul>
+              <li>All interactive controls are reachable via keyboard (Tab, Enter, Space, Escape).</li>
+              <li>ARIA labels and live regions announce dynamic state changes.</li>
+              <li>Color contrast meets or exceeds 4.5:1 for body text.</li>
+              <li>Responsive layout supports mobile and desktop viewports.</li>
+            </ul>
+            <p>
+              Found an accessibility issue? Open an issue on{" "}
+              <a href={INTERFACE_REPO_URL}>GitHub</a> or contact{" "}
+              <a href="mailto:accessibility@soroban-testkit.dev">accessibility@soroban-testkit.dev</a>.
+            </p>
+            <button type="button" className="button primary" onClick={() => setA11yOpen(false)} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Back-to-top control (#125) */}
       <button
