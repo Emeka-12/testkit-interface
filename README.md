@@ -15,7 +15,7 @@ The interface does not execute contracts in the browser. Generated commands run 
   - **Landscape Phone Optimization**: Condensed command form layout for landscape phone orientations (541px-900px width, max 600px height).
 - **Required vs. Optional Setting Distinction**: Visual badges (`Required` / `Optional`) and `aria-required` attributes in the CLI workbench distinguishing mandatory parameters from optional configuration flags.
 - **Audit workflow support**: An expandable, keyboard-accessible preflight checklist, strict-mode control, and advanced multiline command editor help users prepare and reproduce source audits.
-- **Limits command reference**: A standalone reference explains the ready-to-run limits command, its `--contract`, `--fn`, and `--ramp` arguments, defaults, and offline/read-only behavior.
+- **Limits command reference**: A standalone, keyboard-accessible walkthrough builds the Sororail batch-payout contract and runs `soroban-testkit limits` against its `execute_equal` entry point, alongside argument defaults and offline/read-only behavior.
 
 ## Development
 

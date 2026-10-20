@@ -11,6 +11,7 @@ automatically, what was fixed, and what still needs a manual pass.
 | Keyboard | Skip link is first in tab order and moves focus to the page content | `tests/visual/accessibility.spec.ts` |
 | Keyboard | Every focusable control shows an outline on keyboard focus | `tests/visual/accessibility.spec.ts` |
 | Keyboard | Workflow tabs respond to arrow, Home and End keys | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
+| Keyboard | Each command in the limits example is reachable in order with Tab | `tests/visual/accessibility.spec.ts` |
 | Screen reader | Landmarks, a single `h1`, and named navigation links | `tests/visual/accessibility.spec.ts` |
 | Screen reader | Command selector is a labelled group of toggle buttons | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
 | Screen reader | Copy results are announced through a polite live region | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
@@ -48,6 +49,6 @@ browser and screen reader pair per platform.
 | 5 | Module numbers (`01`–`07`) were read as text before every module name. | Fixed: `aria-hidden`. | `src/App.tsx` |
 | 6 | The `footer` sits inside `main`, so it is not exposed as a `contentinfo` landmark. | Open. Moving it out of `main` changes the wide-screen layout, so it needs a visual check. | `src/App.tsx` |
 | 7 | Collapsed guide toggles set `aria-controls` to panels that are not rendered until opened. | Open. Minor; the attribute points at a missing id while collapsed. | `src/App.tsx` |
-| 8 | The limits workflow needed a discoverable command reference. | Fixed: added a focusable reference section with semantic headings, lists, code examples, and a keyboard-accessible navigation link. | `src/App.tsx`, `src/styles.css` |
+| 8 | The limits workflow needed a discoverable, ready-to-run command reference. | Fixed: added a focusable reference section and a build-and-run example with keyboard-focusable command steps. | `src/App.tsx`, `src/styles.css`, `tests/visual/accessibility.spec.ts` |
 | 9 | Scrollable `pre` blocks are not keyboard-focusable in every browser, so long lines may be unreachable by keyboard on some browsers. | Open. | `src/styles.css` |
 | 10 | The stored visual baselines in `tests/visual/__screenshots__` predate the current layout and do not match a fresh render. | Open. Baselines should be regenerated on the CI platform, not locally. | `tests/visual/` |

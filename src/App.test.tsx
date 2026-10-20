@@ -132,7 +132,7 @@ describe("Module filter and empty-state layout (#188)", () => {
     expect(screen.getByRole("heading", { name: /No modules match .zzz./ })).toBeInTheDocument();
     expect(document.getElementById("module-grid")).toBeNull();
 
-    const resetButton = screen.getByRole("button", { name: "Reset filter" });
+    const resetButton = screen.getByRole("button", { name: "Reset filters" });
     resetButton.focus();
     fireEvent.click(resetButton);
 
@@ -400,6 +400,25 @@ describe("Limits command reference (#92)", () => {
     const link = screen.getByRole("link", { name: "Limits reference" });
     expect(link).toHaveAttribute("href", "#limits-reference");
     expect(document.getElementById("limits-reference")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("documents a complete limits run against a real contract with keyboard-accessible commands", () => {
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Run a complete example" })).toBeInTheDocument();
+    expect(screen.getByText(/Rust 1\.91 or later/i)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Clone the Sororail contract workspace" }))
+      .toHaveTextContent("git clone https://github.com/Sororail/sororail-contracts.git");
+    expect(screen.getByRole("region", { name: "Add the wasm32v1-none target" }))
+      .toHaveTextContent("rustup target add wasm32v1-none");
+    expect(screen.getByRole("region", { name: "Build the batch-payout contract" }))
+      .toHaveTextContent("contracts/batch_payout/Cargo.toml");
+
+    const runCommand = screen.getByRole("region", { name: "Run the limits example" });
+    expect(runCommand).toHaveTextContent("soroban-testkit limits");
+    expect(runCommand).toHaveTextContent("--fn execute_equal");
+    expect(runCommand).toHaveTextContent("--ramp recipients");
+    expect(runCommand).toHaveAttribute("tabindex", "0");
   });
 });
 

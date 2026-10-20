@@ -194,6 +194,20 @@ h2 { margin: var(--space-md) 0; font-size: clamp(2rem, 4vw, 4rem); letter-spacin
 .module-grid span { color: var(--color-text-module-num); font: .7rem var(--font-mono); }
 .module-grid h3 { margin: var(--space-6xl) 0 9px; color: var(--color-accent); font: 500 1.1rem var(--font-mono); }
 .module-grid p { margin: 0; color: var(--color-text-body); line-height: 1.5; font-size: .87rem; }
+.module-card-select { display: block; width: 100%; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.module-card-select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+.module-card-links, .category-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-md); }
+.module-card-links { margin-top: var(--space-xl); }
+.module-card-links a { color: var(--color-accent); font-size: .75rem; }
+.category-filter-bar { margin: var(--space-xl) 0; }
+.category-chip { padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-border-default); border-radius: var(--radius-round); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
+.category-chip.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
+.module-category-tag { display: inline-block; margin-top: var(--space-md); }
+.module-detail { padding: var(--space-5xl); background: var(--color-surface-card); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
+.module-detail nav { display: flex; height: auto; justify-content: flex-start; gap: var(--space-md); padding: 0; border: 0; margin-bottom: var(--space-3xl); }
+.module-detail nav a { color: var(--color-accent); }
+.module-detail h2 { margin: var(--space-md) 0; }
+.module-detail > p:not(.eyebrow) { color: var(--color-text-body); line-height: 1.65; }
 
 /* Module Empty State */
 .module-empty-state {
@@ -237,6 +251,12 @@ h2 { margin: var(--space-md) 0; font-size: clamp(2rem, 4vw, 4rem); letter-spacin
 .reference-arguments dt { color: var(--color-text-code); font-family: var(--font-mono); font-size: .8rem; }
 .reference-arguments dd { margin: var(--space-xs) 0 0; }
 .reference-note { margin-bottom: 0; color: var(--color-text-muted) !important; font-family: var(--font-mono); font-size: .75rem !important; }
+.reference-example { margin-top: var(--space-xl); }
+.reference-example-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); margin: 0; padding-left: 1.25rem; }
+.reference-example-steps li { min-width: 0; padding-left: var(--space-xs); }
+.reference-example-steps h4 { margin: 0 0 var(--space-md); color: var(--color-text-primary); font-size: .85rem; }
+.reference-example-steps pre { overflow-wrap: anywhere; }
+.reference-example-steps pre:focus { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 
 /* Commands / CLI Workbench */
 .commands { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8vw; background: var(--color-surface); }
@@ -308,7 +328,7 @@ footer { display: flex; justify-content: space-between; padding: 34px var(--page
 @media (max-width: 900px) {
   .hero, .commands { grid-template-columns: 1fr; }
   .hero { padding-top: 70px; }
-  .reference-grid { grid-template-columns: 1fr; }
+  .reference-grid, .reference-example-steps { grid-template-columns: 1fr; }
 }
 
 /* Tablet-specific spacing for section headers (#186) */
