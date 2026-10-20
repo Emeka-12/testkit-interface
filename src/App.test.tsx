@@ -230,6 +230,20 @@ describe("Soroban workflow documentation and prerequisites", () => {
   });
 });
 
+describe("Audit workflow prerequisites checklist (#91)", () => {
+  it("lets a user check off audit prerequisites, each with its own accessible name", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show tutorial" }));
+
+    const item = screen.getByRole("checkbox", { name: /testkit cli installed/i });
+    expect(item).not.toBeChecked();
+
+    fireEvent.click(item);
+    expect(item).toBeChecked();
+  });
+});
+
 describe("Command builder enhancements", () => {
   it("allows optional coverage arguments to be reordered", () => {
     render(<App />);

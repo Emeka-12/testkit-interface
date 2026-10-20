@@ -115,6 +115,15 @@ const installationSteps = [
   },
 ];
 
+// Things worth confirming before running an audit scan (#91). Local-only
+// checklist state; nothing here is persisted or sent anywhere.
+const auditPrerequisites = [
+  { id: "rust", label: "Rust toolchain installed via rustup" },
+  { id: "wasm-target", label: "wasm32v1-none compilation target added" },
+  { id: "testkit-cli", label: "Testkit CLI installed and on your PATH" },
+  { id: "builds-clean", label: "Contract builds without warnings before scanning" },
+];
+
 function summarizeConfiguration(options: CommandOptions): SummaryRow[] {
   const rows: SummaryRow[] = [{ label: "Workflow", value: options.command }];
   if (options.path) rows.push({ label: "Path", value: options.path });
@@ -241,6 +250,7 @@ export default function App() {
   const [configB, setConfigB] = useState<CommandOptions | null>(null);
   const [coverageGuideOpen, setCoverageGuideOpen] = useState(false);
   const [auditGuideOpen, setAuditGuideOpen] = useState(false);
+  const [checkedPrerequisites, setCheckedPrerequisites] = useState<Record<string, boolean>>({});
   const comparePanelRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
 
@@ -1245,6 +1255,23 @@ export default function App() {
           </div>
           {auditGuideOpen && (
             <div id="audit-guide-panel" className="guide-panel">
+              <fieldset className="audit-prerequisites">
+                <legend>Prerequisites</legend>
+                {auditPrerequisites.map((item) => (
+                  <label key={item.id} className="check">
+                    <span className="check-content">
+                      <input
+                        type="checkbox"
+                        checked={checkedPrerequisites[item.id] ?? false}
+                        onChange={(event) =>
+                          setCheckedPrerequisites((prev) => ({ ...prev, [item.id]: event.target.checked }))
+                        }
+                      />
+                      <span>{item.label}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
               <ol>
                 <li>Point the audit at the contract source directory or workspace root most relevant to the change.</li>
                 <li>
