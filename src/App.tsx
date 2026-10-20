@@ -566,10 +566,10 @@ export default function App() {
         </aside>
       </section>
 
-      <section className="modules" id="modules" tabIndex={-1}>
+      <section className="modules" id="modules" aria-labelledby="modules-heading" tabIndex={-1}>
         <header>
           <p className="eyebrow">One prelude. Seven focused modules.</p>
-          <h2>Everything a serious contract test needs.</h2>
+          <h2 id="modules-heading">Everything a serious contract test needs.</h2>
           <div className="module-filter-bar">
             <label htmlFor="module-search" className="sr-only">
               Filter modules
@@ -600,11 +600,12 @@ export default function App() {
         {filteredModules.length > 0 ? (
           <div className="module-grid" id="module-grid">
             {filteredModules.map(([name, description], index) => (
-              <article key={name}>
+              <article key={name} aria-labelledby={`module-heading-${name}`}>
                 <span aria-hidden="true">0{index + 1}</span>
-                <h3>{name}</h3>
+                <h3 id={`module-heading-${name}`}>{name}</h3>
                 <p>{description}</p>
-                <div className="module-card-links">
+                <div className="module-card-links" role="group" aria-label={`Workflows for ${name} module`}>
+                  <h4 className="sr-only">Available workflows</h4>
                   <a href="#commands" aria-label={`Open the command builder from the ${name} module`}>
                     Command builder
                   </a>
@@ -623,11 +624,11 @@ export default function App() {
             ))}
           </div>
         ) : (
-          <div className="module-empty-state" role="status" aria-live="polite">
+          <div className="module-empty-state" role="status" aria-live="polite" aria-labelledby="module-empty-heading">
             <div className="module-empty-icon" aria-hidden="true">
               ∅
             </div>
-            <h3>No modules match &ldquo;{moduleFilter}&rdquo;</h3>
+            <h3 id="module-empty-heading">No modules match &ldquo;{moduleFilter}&rdquo;</h3>
             <p>No testing modules found matching your filter criteria. Try adjusting your search term.</p>
             <button type="button" className="button secondary" onClick={resetModuleFilter}>
               Reset filter
@@ -766,8 +767,22 @@ export default function App() {
             </button>
           </div>
 
-          <section className="summary-card" aria-labelledby="command-summary-heading">
+          <section
+            className="summary-card"
+            aria-labelledby="command-summary-heading"
+            tabIndex={0}
+            role="region"
+            aria-label="Active command configuration summary"
+          >
             <h3 id="command-summary-heading">Command summary</h3>
+            <div
+              className="sr-only"
+              aria-live="polite"
+              aria-atomic="true"
+              data-testid="active-command-sr-summary"
+            >
+              Active {command} command settings: {summaryRows.map((row) => `${row.label} is ${row.value}`).join(", ")}.
+            </div>
             <p className="summary-workflow">{command}</p>
             <dl className="summary-settings">
               {summaryRows.map((row) => (
@@ -993,9 +1008,16 @@ export default function App() {
             )}
           </section>
 
-          <div className="output">
+          <div className="output" role="region" aria-label="Generated CLI command">
+            <div
+              className="sr-only"
+              aria-live="polite"
+              data-testid="generated-command-sr-summary"
+            >
+              Active generated command: {generated}
+            </div>
             <code data-testid="command-output">{highlightCommand(generated)}</code>
-            <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+            <button onClick={copy} aria-label="Copy command">{copied ? "Copied" : "Copy"}</button>
           </div>
 
           <div className="advanced-command-block">

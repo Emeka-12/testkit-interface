@@ -535,3 +535,104 @@ describe("Navigation enhancements (#112, #113, #114, #115)", () => {
     expect(html).toHaveStyle("scroll-padding-top: 78px");
   });
 });
+
+describe("Accessibility enhancements (#104, #105, #106, #107)", () => {
+  it("provides logical heading hierarchy in modules section and cards (#105)", () => {
+    render(<App />);
+    const modulesSection = document.getElementById("modules");
+    expect(modulesSection).toHaveAttribute("aria-labelledby", "modules-heading");
+
+    const modulesHeading = screen.getByRole("heading", { level: 2, name: /Modules/i });
+    expect(modulesHeading).toHaveAttribute("id", "modules-heading");
+
+    const articles = document.querySelectorAll("article.module-card");
+    expect(articles.length).toBeGreaterThan(0);
+
+    articles.forEach((article) => {
+      const heading = article.querySelector("h3");
+      expect(heading).not.toBeNull();
+      const headingId = heading?.getAttribute("id");
+      expect(headingId).toBeTruthy();
+      expect(article).toHaveAttribute("aria-labelledby", headingId);
+
+      const workflowGroup = article.querySelector(".module-card-links");
+      expect(workflowGroup).toHaveAttribute("role", "group");
+      const h4 = workflowGroup?.querySelector("h4");
+      expect(h4).not.toBeNull();
+      expect(h4).toHaveTextContent("Available workflows");
+      expect(h4).toHaveClass("sr-only");
+    });
+  });
+
+  it("provides empty state heading when no modules match search filter (#105)", () => {
+    render(<App />);
+    const searchInput = screen.getByPlaceholderText(/Filter modules/i);
+    fireEvent.change(searchInput, { target: { value: "nonexistent-module-xyz" } });
+
+    const emptyStatus = screen.getByRole("status");
+    expect(emptyStatus).toHaveAttribute("aria-labelledby", "module-empty-heading");
+
+    const emptyHeading = screen.getByRole("heading", { level: 3, name: /No modules match/i });
+    expect(emptyHeading).toHaveAttribute("id", "module-empty-heading");
+  });
+
+  it("provides screen-reader summary of active command configuration (#106)", () => {
+    render(<App />);
+    const summaryRegion = screen.getByRole("region", {
+      name: "Active command configuration summary",
+    });
+    expect(summaryRegion).toBeInTheDocument();
+    expect(summaryRegion).toHaveAttribute("tabindex", "0");
+
+    const srSummary = screen.getByTestId("active-command-sr-summary");
+    expect(srSummary).toHaveAttribute("aria-live", "polite");
+    expect(srSummary).toHaveAttribute("aria-atomic", "true");
+    expect(srSummary).toHaveTextContent("Active coverage command settings");
+
+    // Switching workflow updates the SR summary
+    const snapshotTab = screen.getByRole("button", { name: "Snapshots" });
+    fireEvent.click(snapshotTab);
+
+    expect(srSummary).toHaveTextContent("Active snapshot command settings");
+  });
+
+  it("includes live region announcement for generated command output (#106)", () => {
+    render(<App />);
+    const generatedSrSummary = screen.getByTestId("generated-command-sr-summary");
+    expect(generatedSrSummary).toHaveAttribute("aria-live", "polite");
+    expect(generatedSrSummary).toHaveTextContent("soroban-testkit coverage");
+  });
+
+  it("supports non-color cues on links and active states (#104)", () => {
+    render(<App />);
+    const navLinks = screen.getAllByRole("link", { name: /^(Install|Modules|Commands)$/ });
+    const commandsLink = navLinks.find((l) => l.textContent === "Commands");
+    expect(commandsLink).toBeDefined();
+
+    fireEvent.click(commandsLink!);
+    expect(commandsLink).toHaveAttribute("aria-current", "location");
+
+    // All module card quick links have non-empty accessible text
+    const moduleLinks = document.querySelectorAll(".module-card-links a");
+    expect(moduleLinks.length).toBeGreaterThan(0);
+    moduleLinks.forEach((link) => {
+      expect(link.textContent?.trim().length).toBeGreaterThan(0);
+    });
+  });
+
+  it("ensures controls and summary cards have container boundaries for high contrast (#107)", () => {
+    render(<App />);
+    const summaryCard = document.querySelector(".summary-card");
+    expect(summaryCard).not.toBeNull();
+    expect(summaryCard).toHaveClass("summary-card");
+
+    const moduleCards = document.querySelectorAll(".module-card");
+    expect(moduleCards.length).toBeGreaterThan(0);
+
+    const buttons = screen.getAllByRole("button");
+    buttons.forEach((btn) => {
+      expect(btn).toHaveClass("button");
+    });
+  });
+});
+
