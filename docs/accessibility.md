@@ -14,6 +14,7 @@ automatically, what was fixed, and what still needs a manual pass.
 | Screen reader | Landmarks, a single `h1`, and named navigation links | `tests/visual/accessibility.spec.ts` |
 | Screen reader | Command selector is a labelled group of toggle buttons | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
 | Screen reader | Copy results are announced through a polite live region | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
+| Screen reader | Audit prerequisites are a labelled fieldset of checkboxes, each with its own accessible name | `src/App.test.tsx` |
 | Zoom | No horizontal page scroll and no clipped controls at 640px and 320px CSS widths | `tests/visual/accessibility.spec.ts` |
 
 These checks read the accessibility tree and computed styles. They do not
