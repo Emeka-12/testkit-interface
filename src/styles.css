@@ -876,6 +876,275 @@ footer { display: flex; justify-content: space-between; padding: 34px var(--page
   outline-offset: 2px;
 }
 
+/* #175 — Feedback links for workflow guides */
+.guide-feedback-link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2xs) var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.guide-feedback-link:hover {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+}
+.guide-feedback-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.guide-header-actions {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.reference-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+/* #173 — Quick reference for all commands */
+.quick-reference-card {
+  background: linear-gradient(135deg, var(--color-surface-card) 0%, var(--color-surface) 100%);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5xl);
+  margin-bottom: var(--space-5xl);
+}
+
+.quick-reference-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4xl);
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.quick-reference-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.quick-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-4xl);
+  margin-bottom: var(--space-4xl);
+}
+
+.quick-ref-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3xl);
+}
+
+.quick-ref-item h4 {
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.quick-ref-desc {
+  margin: 0 0 var(--space-lg) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.quick-ref-item pre {
+  background: var(--color-surface-output);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  padding: var(--space-lg);
+  margin: 0 0 var(--space-lg) 0;
+  overflow-x: auto;
+}
+
+.quick-ref-item code {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--color-text-code);
+}
+
+.quick-ref-details {
+  margin: var(--space-lg) 0 0 0;
+  font-size: 0.85rem;
+}
+
+.quick-ref-details dt {
+  margin-top: var(--space-md);
+  font-weight: 600;
+  color: var(--color-text-label);
+}
+
+.quick-ref-details dd {
+  margin: var(--space-2xs) 0 0 0;
+  color: var(--color-text-body);
+  line-height: 1.6;
+}
+
+.quick-ref-details code {
+  background: var(--color-surface-output);
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-xs);
+  font-size: 0.8rem;
+}
+
+.quick-reference-note {
+  background: var(--color-accent-subtle);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg) var(--space-xl);
+}
+
+.quick-reference-note p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.quick-reference-note code {
+  background: var(--color-surface-output);
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-accent);
+}
+
+/* #174 — Release notes */
+.release-notes-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin: var(--space-3xl) 0;
+  padding-right: var(--space-md);
+}
+
+.release-note-item {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3xl);
+  margin-bottom: var(--space-lg);
+}
+
+.release-note-item h3 {
+  margin: 0 0 var(--space-lg) 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.release-note-item ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.release-note-item li {
+  margin-bottom: var(--space-sm);
+  line-height: 1.6;
+  color: var(--color-text-body);
+}
+
+.release-note-item strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.release-notes-footer {
+  margin-top: var(--space-3xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.release-notes-footer a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* Print styles for quick reference */
+@media print {
+  nav,
+  .hero,
+  .install,
+  .modules,
+  .docs,
+  .commands,
+  .guide-card,
+  .command-reference,
+  footer,
+  .back-to-top {
+    display: none !important;
+  }
+  
+  .quick-reference-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .quick-ref-item {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .quick-reference-card {
+    border: 2px solid black;
+    background: white;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .quick-reference-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .quick-reference-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .reference-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .guide-header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .guide-toggle {
+    width: 100%;
+  }
+}
+
 /* #147 — command history panel */
 .command-history {
   margin-top: var(--space-3xl);
