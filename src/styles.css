@@ -308,6 +308,16 @@ input:invalid:focus, select:invalid:focus { border-color: #ff6b6b; box-shadow: 0
 .output { display: flex; align-items: center; gap: 15px; padding: var(--space-lg); background: var(--color-surface-output); border-radius: var(--radius-md); }
 .output code { flex: 1; color: var(--color-accent); font: .75rem/1.6 var(--font-mono); overflow-wrap: anywhere; }
 .output button { color: var(--color-canvas); background: var(--color-accent); border: 0; border-radius: var(--radius-xs); padding: var(--space-sm) var(--space-md); cursor: pointer; font-weight: 600; }
+
+/* Issue #144 & #145: Copy options styling */
+.copy-options { display: flex; gap: var(--space-md); margin-block-start: var(--space-md); flex-wrap: wrap; }
+.copy-options button { flex: 1; min-width: 200px; }
+.copy-options button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Issue #141 & #143: Command actions styling */
+.command-actions { display: flex; gap: var(--space-md); margin-block-start: var(--space-md); flex-wrap: wrap; }
+.command-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
 
 footer { display: flex; justify-content: space-between; padding: 34px var(--page-padding); border-top: 1px solid var(--color-border-subtle); color: var(--color-text-muted); font-size: .78rem; }

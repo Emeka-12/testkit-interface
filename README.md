@@ -16,6 +16,12 @@ The interface does not execute contracts in the browser. Generated commands run 
 - **Required vs. Optional Setting Distinction**: Visual badges (`Required` / `Optional`) and `aria-required` attributes in the CLI workbench distinguishing mandatory parameters from optional configuration flags.
 - **Audit workflow support**: An expandable, keyboard-accessible preflight checklist, strict-mode control, and advanced multiline command editor help users prepare and reproduce source audits.
 - **Limits command reference**: A standalone, keyboard-accessible walkthrough builds the Sororail batch-payout contract and runs `soroban-testkit limits` against its `execute_equal` entry point, alongside argument defaults and offline/read-only behavior.
+- **Enhanced Copy Options**: Multiple ways to copy commands:
+  - **Copy with Comments** (#144): Export commands with inline explanatory comments for documentation and learning.
+  - **Copy as Script** (#145): Generate complete, executable bash scripts with variables and error handling.
+- **Workflow Management**:
+  - **Reset to Defaults** (#141): Quickly reset the active workflow to its default configuration.
+  - **Command History** (#143): Restore previously configured commands with one click (maintains last 10 commands).
 
 ## Development
 
