@@ -354,6 +354,8 @@ export default function App() {
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   // #116 — accessibility statement modal
   const [a11yOpen, setA11yOpen] = useState(false);
+  // #174 — release notes modal
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
   // Issue #168 — Feature matrix visibility (reserved for future interactivity)
   const [_featureMatrixOpen, _setFeatureMatrixOpen] = useState(false);
@@ -365,8 +367,6 @@ export default function App() {
   void _setFeatureMatrixOpen;
   void _glossaryOpen;
   void _setGlossaryOpen;
-  void tocOpen;
-  void setTocOpen;
 
   useEffect(() => {
     document.documentElement.style.scrollPaddingTop = "78px";
@@ -1690,18 +1690,94 @@ export default function App() {
       </section>
 
       <section className="guides" aria-label="Workflow guides">
+        {/* Quick reference section for all three commands */}
+        <article className="quick-reference-card">
+          <div className="quick-reference-header">
+            <h3>Quick Reference — All Commands</h3>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => window.print()}
+              aria-label="Print quick reference"
+            >
+              Print reference
+            </button>
+          </div>
+          <div className="quick-reference-grid">
+            <div className="quick-ref-item">
+              <h4>Coverage</h4>
+              <p className="quick-ref-desc">Generate contract-test coverage through cargo-llvm-cov</p>
+              <pre><code>soroban-testkit coverage [PATH]
+  --format [html|lcov|text]
+  --open</code></pre>
+              <dl className="quick-ref-details">
+                <dt>Default path:</dt>
+                <dd>. (current directory)</dd>
+                <dt>Example:</dt>
+                <dd><code>soroban-testkit coverage ./contracts/token --format html --open</code></dd>
+                <dt>Example with spaces:</dt>
+                <dd><code>soroban-testkit coverage "./my contracts/token" --format html</code></dd>
+              </dl>
+            </div>
+            <div className="quick-ref-item">
+              <h4>Limits</h4>
+              <p className="quick-ref-desc">Ramp a contract input to find its practical resource ceiling</p>
+              <pre><code>soroban-testkit limits
+  --contract [WASM_PATH]
+  --fn [FUNCTION]
+  --ramp [PARAMETER]</code></pre>
+              <dl className="quick-ref-details">
+                <dt>Defaults:</dt>
+                <dd>contract: target/wasm32v1-none/release/contract.wasm<br />fn: batch_payout<br />ramp: recipients</dd>
+                <dt>Example:</dt>
+                <dd><code>soroban-testkit limits --contract ./build/token.wasm --fn transfer --ramp amount</code></dd>
+                <dt>Example with spaces:</dt>
+                <dd><code>soroban-testkit limits --contract "./my build/token.wasm" --fn transfer</code></dd>
+              </dl>
+            </div>
+            <div className="quick-ref-item">
+              <h4>Audit</h4>
+              <p className="quick-ref-desc">Scan contract sources for common auth, arithmetic, and TTL risks</p>
+              <pre><code>soroban-testkit audit [PATH]
+  --strict</code></pre>
+              <dl className="quick-ref-details">
+                <dt>Default path:</dt>
+                <dd>./src</dd>
+                <dt>Example:</dt>
+                <dd><code>soroban-testkit audit ./contracts/escrow/src --strict</code></dd>
+                <dt>Example with spaces:</dt>
+                <dd><code>soroban-testkit audit "./my contracts/src" --strict</code></dd>
+              </dl>
+            </div>
+          </div>
+          <div className="quick-reference-note">
+            <p><strong>Note on paths with spaces:</strong> Always wrap paths containing spaces in double quotes (e.g., <code>"./my contracts"</code>) to ensure proper command parsing.</p>
+          </div>
+        </article>
+
         <article className="guide-card">
           <div className="guide-header">
             <h3>Coverage report guide</h3>
-            <button
-              type="button"
-              className="guide-toggle"
-              aria-expanded={coverageGuideOpen}
-              aria-controls="coverage-guide-panel"
-              onClick={() => setCoverageGuideOpen((open) => !open)}
-            >
-              {coverageGuideOpen ? "Hide guide" : "Show guide"}
-            </button>
+            <div className="guide-header-actions">
+              <button
+                type="button"
+                className="guide-toggle"
+                aria-expanded={coverageGuideOpen}
+                aria-controls="coverage-guide-panel"
+                onClick={() => setCoverageGuideOpen((open) => !open)}
+              >
+                {coverageGuideOpen ? "Hide guide" : "Show guide"}
+              </button>
+              <a 
+                href="https://github.com/soroban-testkit/testkit-interface/issues/new?title=Coverage%20guide%20feedback&labels=documentation" 
+                className="guide-feedback-link"
+                aria-label="Provide feedback on Coverage guide"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Feedback
+              </a>
+            </div>
           </div>
           {coverageGuideOpen && (
             <div id="coverage-guide-panel" className="guide-panel">
@@ -1725,15 +1801,26 @@ export default function App() {
         <article className="guide-card">
           <div className="guide-header">
             <h3>Audit workflow tutorial</h3>
-            <button
-              type="button"
-              className="guide-toggle"
-              aria-expanded={auditGuideOpen}
-              aria-controls="audit-guide-panel"
-              onClick={() => setAuditGuideOpen((open) => !open)}
-            >
-              {auditGuideOpen ? "Hide tutorial" : "Show tutorial"}
-            </button>
+            <div className="guide-header-actions">
+              <button
+                type="button"
+                className="guide-toggle"
+                aria-expanded={auditGuideOpen}
+                aria-controls="audit-guide-panel"
+                onClick={() => setAuditGuideOpen((open) => !open)}
+              >
+                {auditGuideOpen ? "Hide tutorial" : "Show tutorial"}
+              </button>
+              <a 
+                href="https://github.com/soroban-testkit/testkit-interface/issues/new?title=Audit%20guide%20feedback&labels=documentation" 
+                className="guide-feedback-link"
+                aria-label="Provide feedback on Audit guide"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Feedback
+              </a>
+            </div>
           </div>
           {auditGuideOpen && (
             <div id="audit-guide-panel" className="guide-panel">
@@ -2090,7 +2177,18 @@ soroban-testkit = "0.2.0"`}</code>
         >
           <div className="reference-header">
             <p className="eyebrow">Command reference</p>
-            <h2 id="limits-reference-heading">Resource limits, at a glance.</h2>
+            <div className="reference-title-row">
+              <h2 id="limits-reference-heading">Resource limits, at a glance.</h2>
+              <a 
+                href="https://github.com/soroban-testkit/testkit-interface/issues/new?title=Limits%20reference%20feedback&labels=documentation" 
+                className="guide-feedback-link"
+                aria-label="Provide feedback on Limits reference"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Feedback
+              </a>
+            </div>
             <p>
               Use <code>soroban-testkit limits</code> to ramp one contract input until the local WASM
               execution reaches its practical resource ceiling. The command is read-only and runs offline.
@@ -2171,6 +2269,10 @@ soroban-testkit = "0.2.0"`}</code>
           <a href={CORE_REPO_URL}>Soroban Testkit core repository</a>
           {/* #119 — changelog link */}
           <a href={`${CORE_REPO_URL}/releases`}>Changelog</a>
+          {/* #174 — release notes link */}
+          <button type="button" className="footer-a11y-link" onClick={() => setReleaseNotesOpen(true)}>
+            Release notes
+          </button>
           {/* #116 — accessibility statement */}
           <button type="button" className="footer-a11y-link" onClick={() => setA11yOpen(true)}>
             Accessibility statement
@@ -2178,6 +2280,67 @@ soroban-testkit = "0.2.0"`}</code>
         </span>
         <span>Apache-2.0</span>
       </footer>
+
+      {/* #174 — release notes dialog */}
+      {releaseNotesOpen && (
+        <div className="a11y-overlay" role="dialog" aria-modal="true" aria-labelledby="release-notes-title" onClick={() => setReleaseNotesOpen(false)}>
+          <div className="a11y-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 id="release-notes-title">Interface Release Notes</h2>
+            <p>
+              This interface evolves alongside the Soroban Testkit CLI. Interface-visible changes track CLI
+              capabilities, new workflow guides, and accessibility enhancements.
+            </p>
+            
+            <div className="release-notes-list">
+              <article className="release-note-item">
+                <h3>v0.4.0 — October 2026</h3>
+                <ul>
+                  <li><strong>Quick reference:</strong> Added printable command reference for coverage, limits, and audit workflows with examples including paths with spaces.</li>
+                  <li><strong>Documentation feedback:</strong> Added feedback links beside each workflow guide for direct issue reporting.</li>
+                  <li><strong>Path examples:</strong> Added comprehensive examples for handling contract paths containing spaces across all commands.</li>
+                  <li><strong>Release notes:</strong> Added this interface-visible CLI changes section.</li>
+                </ul>
+              </article>
+
+              <article className="release-note-item">
+                <h3>v0.3.0 — September 2026</h3>
+                <ul>
+                  <li><strong>Limits workflow:</strong> Added complete standalone reference with default arguments and offline behavior explanation.</li>
+                  <li><strong>Audit prerequisites:</strong> Expandable preflight checklist helps users prepare source audit scans.</li>
+                  <li><strong>Advanced editor:</strong> Multiline command editor supports complex argument combinations.</li>
+                </ul>
+              </article>
+
+              <article className="release-note-item">
+                <h3>v0.2.0 — August 2026</h3>
+                <ul>
+                  <li><strong>Configuration comparison:</strong> Side-by-side comparison panel for different workflow settings.</li>
+                  <li><strong>Required vs Optional:</strong> Visual badges distinguish mandatory parameters from optional flags.</li>
+                  <li><strong>Effective defaults:</strong> Preview panel shows which empty fields fall back to default values.</li>
+                </ul>
+              </article>
+
+              <article className="release-note-item">
+                <h3>v0.1.0 — July 2026</h3>
+                <ul>
+                  <li><strong>Initial release:</strong> Command builder for coverage, limits, and audit workflows.</li>
+                  <li><strong>Module documentation:</strong> Seven focused testing modules with category filtering.</li>
+                  <li><strong>Installation guide:</strong> Step-by-step setup from clean machine to first command.</li>
+                  <li><strong>Accessibility:</strong> Keyboard navigation, screen reader support, and WCAG 2.1 AA compliance.</li>
+                </ul>
+              </article>
+            </div>
+
+            <p className="release-notes-footer">
+              For complete CLI changelog including internal implementation details, see the{" "}
+              <a href={`${CORE_REPO_URL}/releases`}>core repository releases</a>.
+            </p>
+            <button type="button" className="button primary" onClick={() => setReleaseNotesOpen(false)} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* #116 — accessibility statement dialog */}
       {a11yOpen && (
