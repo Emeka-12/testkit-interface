@@ -34,6 +34,84 @@ const moduleRelatedWorkflows: Record<(typeof modules)[number]["name"], CommandNa
   ttl: ["audit"],
 };
 
+// Issue #168 — Module feature matrix
+const testConcerns = [
+  "Deterministic execution",
+  "Time manipulation",
+  "Balance tracking",
+  "Event capture",
+  "Token mocking",
+  "Auth simulation",
+  "Storage lifecycle",
+] as const;
+
+type TestConcern = (typeof testConcerns)[number];
+
+const moduleFeatureMatrix: Record<(typeof modules)[number]["name"], TestConcern[]> = {
+  core: ["Deterministic execution"],
+  ledger: ["Time manipulation", "Deterministic execution"],
+  money: ["Balance tracking"],
+  events: ["Event capture"],
+  tokens: ["Token mocking", "Balance tracking"],
+  auth: ["Auth simulation"],
+  ttl: ["Storage lifecycle"],
+};
+
+// Issue #169 — Glossary terms
+interface GlossaryTerm {
+  term: string;
+  definition: string;
+  relatedModules?: string[];
+}
+
+const glossary: GlossaryTerm[] = [
+  {
+    term: "TestEnv",
+    definition: "Deterministic test environment that isolates contract execution from external state.",
+    relatedModules: ["core"],
+  },
+  {
+    term: "Ledger time",
+    definition: "Simulated blockchain timestamp that can be controlled in tests for time-dependent logic.",
+    relatedModules: ["ledger"],
+  },
+  {
+    term: "Conservation checks",
+    definition: "Assertions verifying that token balances remain consistent across transfers and operations.",
+    relatedModules: ["money"],
+  },
+  {
+    term: "Event assertion",
+    definition: "Typed validation of contract-emitted events to ensure correct state change notifications.",
+    relatedModules: ["events"],
+  },
+  {
+    term: "Test double",
+    definition: "Mock implementation of the Stellar Asset Contract for isolated testing without deployment.",
+    relatedModules: ["tokens"],
+  },
+  {
+    term: "Auth matrix",
+    definition: "Multi-actor authorization framework simulating privilege and access control scenarios.",
+    relatedModules: ["auth"],
+  },
+  {
+    term: "TTL",
+    definition: "Time-to-live: storage entry lifetime simulation for testing expiry and restoration logic.",
+    relatedModules: ["ttl"],
+  },
+  {
+    term: "Adversarial values",
+    definition: "Edge-case monetary inputs designed to expose overflow, underflow, and precision bugs.",
+    relatedModules: ["money"],
+  },
+  {
+    term: "Prelude",
+    definition: "Unified import bringing all focused testing modules into scope with a single use statement.",
+    relatedModules: ["core"],
+  },
+];
+
 const descriptions: Record<CommandName, string> = {
   coverage: "Generate contract-test coverage through cargo-llvm-cov.",
   limits: "Ramp a contract input to find its practical resource ceiling.",
@@ -271,6 +349,18 @@ export default function App() {
   // #116 — accessibility statement modal
   const [a11yOpen, setA11yOpen] = useState(false);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
+  // Issue #168 — Feature matrix visibility (reserved for future interactivity)
+  const [_featureMatrixOpen, _setFeatureMatrixOpen] = useState(false);
+  // Issue #169 — Glossary visibility (reserved for future interactivity)
+  const [_glossaryOpen, _setGlossaryOpen] = useState(false);
+  
+  // Prevent unused variable warnings
+  void _featureMatrixOpen;
+  void _setFeatureMatrixOpen;
+  void _glossaryOpen;
+  void _setGlossaryOpen;
+  void tocOpen;
+  void setTocOpen;
 
   useEffect(() => {
     document.documentElement.style.scrollPaddingTop = "78px";
@@ -754,6 +844,77 @@ export default function App() {
         )}
       </section>
 
+      {/* Issue #168 — Feature Matrix */}
+      <section className="feature-matrix" aria-labelledby="feature-matrix-heading">
+        <header>
+          <p className="eyebrow">Coverage at a glance</p>
+          <h2 id="feature-matrix-heading">Which modules cover each test concern?</h2>
+          <p>
+            This matrix shows which testing modules address common contract testing needs. Use it to identify
+            the right module for your test scenario.
+          </p>
+        </header>
+        <div className="matrix-table-wrap" role="region" aria-label="Module feature matrix" tabIndex={0}>
+          <table className="feature-matrix-table" aria-label="Test concerns covered by each module">
+            <thead>
+              <tr>
+                <th scope="col">Module</th>
+                {testConcerns.map((concern) => (
+                  <th key={concern} scope="col">{concern}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {modules.map((mod) => (
+                <tr key={mod.name}>
+                  <th scope="row">{mod.name}</th>
+                  {testConcerns.map((concern) => {
+                    const hasFeature = moduleFeatureMatrix[mod.name].includes(concern);
+                    return (
+                      <td key={concern} aria-label={hasFeature ? `${mod.name} supports ${concern}` : `${mod.name} does not support ${concern}`}>
+                        {hasFeature ? <span className="feature-check" aria-hidden="true">✓</span> : <span className="feature-empty" aria-hidden="true">—</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Issue #169 — Glossary */}
+      <section className="glossary" aria-labelledby="glossary-heading">
+        <header>
+          <p className="eyebrow">Learn the vocabulary</p>
+          <h2 id="glossary-heading">Testkit module terminology</h2>
+          <p>
+            Key terms and concepts used across Testkit modules. Each term links to its related testing modules
+            for deeper exploration.
+          </p>
+        </header>
+        <dl className="glossary-list">
+          {glossary.map((item) => (
+            <div key={item.term} className="glossary-item">
+              <dt id={`term-${item.term.toLowerCase().replace(/\s+/g, "-")}`}>{item.term}</dt>
+              <dd>
+                {item.definition}
+                {item.relatedModules && item.relatedModules.length > 0 && (
+                  <span className="glossary-modules">
+                    {" "}Related modules: {item.relatedModules.map((modName, index) => (
+                      <span key={modName}>
+                        <a href="#modules" onClick={() => setSelectedModule(modName)}>{modName}</a>
+                        {index < item.relatedModules!.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       <section className="docs" aria-label="Soroban workflow documentation">
         <div className="docs-header">
           <p className="eyebrow">Prerequisites & tutorials</p>
@@ -854,10 +1015,90 @@ export default function App() {
                     {"  "}--ramp recipients
                   </code>
                 </pre>
+                {/* Issue #170 — Valid function and ramp examples */}
+                <div className="parameter-examples" aria-labelledby="parameter-examples-heading">
+                  <h4 id="parameter-examples-heading">Valid function and ramp parameter examples</h4>
+                  <div className="example-grid">
+                    <div className="example-card">
+                      <h5>Function examples</h5>
+                      <ul>
+                        <li><code>batch_payout</code> — Multi-recipient payment distribution</li>
+                        <li><code>transfer</code> — Single token transfer operation</li>
+                        <li><code>execute_equal</code> — Equal distribution to recipients</li>
+                        <li><code>swap</code> — Token exchange operation</li>
+                        <li><code>mint</code> — Token creation function</li>
+                      </ul>
+                      <p className="example-note">Use the exported symbol name from your contract ABI.</p>
+                    </div>
+                    <div className="example-card">
+                      <h5>Ramp parameter examples</h5>
+                      <ul>
+                        <li><code>recipients</code> — Number of payment recipients</li>
+                        <li><code>amount</code> — Transaction amount value</li>
+                        <li><code>iterations</code> — Loop iteration count</li>
+                        <li><code>accounts</code> — Number of accounts involved</li>
+                        <li><code>entries</code> — Storage or data entries</li>
+                      </ul>
+                      <p className="example-note">Must match a parameter name in the function signature.</p>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </div>
         ))}
+      </section>
+
+      {/* Issue #171 — Offline execution boundary documentation */}
+      <section className="offline-boundary" aria-labelledby="offline-boundary-heading">
+        <header>
+          <p className="eyebrow">Zero network dependency</p>
+          <h2 id="offline-boundary-heading">Offline execution boundary</h2>
+          <p>
+            The Soroban Testkit Interface generates commands that run completely offline. No contract bytecode,
+            source files, or test data ever leave your machine.
+          </p>
+        </header>
+        <div className="boundary-grid">
+          <article className="boundary-card">
+            <h3>What stays local</h3>
+            <ul>
+              <li><strong>Contract source code:</strong> Never transmitted remotely during audit scans</li>
+              <li><strong>Compiled WASM:</strong> Probed locally without deployment to test networks</li>
+              <li><strong>Test state:</strong> Deterministic environments run in isolated processes</li>
+              <li><strong>Coverage data:</strong> Generated and stored entirely on your filesystem</li>
+              <li><strong>Configuration:</strong> All command parameters remain in your terminal session</li>
+            </ul>
+          </article>
+          <article className="boundary-card">
+            <h3>Execution guarantees</h3>
+            <dl className="boundary-list">
+              <dt><code>coverage</code></dt>
+              <dd>Runs local test suites through cargo-llvm-cov. Writes HTML/LCOV reports to disk.</dd>
+              
+              <dt><code>limits</code></dt>
+              <dd>Executes WASM in child processes with mocked ledger state. Zero network RPC calls.</dd>
+              
+              <dt><code>audit</code></dt>
+              <dd>Parses Rust AST from local files. Read-only analysis with no external telemetry.</dd>
+            </dl>
+          </article>
+          <article className="boundary-card boundary-note">
+            <h3>Why offline matters</h3>
+            <p>
+              Deterministic testing requires reproducible environments. Network dependencies introduce
+              variability, latency, and state synchronization issues that break test reliability.
+            </p>
+            <p>
+              By keeping execution local, Testkit ensures your contract tests produce identical results
+              regardless of network conditions, third-party service availability, or ledger state changes.
+            </p>
+            <p className="boundary-highlight">
+              <strong>Security benefit:</strong> Proprietary contract logic and business rules remain
+              confidential during development and testing phases.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section className="commands" id="commands" tabIndex={-1}>

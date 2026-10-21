@@ -545,3 +545,275 @@ footer { display: flex; justify-content: space-between; padding: 34px var(--page
   gap: var(--space-md);
   flex-wrap: wrap;
 }
+
+/* Issue #168 — Feature Matrix */
+.feature-matrix {
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--color-canvas);
+}
+.feature-matrix header {
+  max-width: 68rem;
+  margin: 0 auto var(--space-xl);
+  text-align: center;
+}
+.feature-matrix h2 {
+  font-size: 1.8rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
+}
+.feature-matrix p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.matrix-table-wrap {
+  overflow-x: auto;
+  max-width: 68rem;
+  margin: 0 auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.feature-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.feature-matrix-table thead {
+  background: var(--color-surface-secondary);
+  border-bottom: 2px solid var(--color-border);
+}
+.feature-matrix-table th {
+  padding: var(--space-md);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.feature-matrix-table tbody tr {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.feature-matrix-table tbody tr:hover {
+  background: var(--color-surface-secondary);
+}
+.feature-matrix-table td {
+  padding: var(--space-md);
+  text-align: center;
+}
+.feature-check {
+  color: var(--color-accent);
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+.feature-empty {
+  color: var(--color-text-tertiary);
+}
+
+/* Issue #169 — Glossary */
+.glossary {
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--color-surface);
+}
+.glossary header {
+  max-width: 68rem;
+  margin: 0 auto var(--space-xl);
+  text-align: center;
+}
+.glossary h2 {
+  font-size: 1.8rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
+}
+.glossary header p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.glossary-list {
+  max-width: 68rem;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-lg);
+}
+.glossary-item {
+  padding: var(--space-lg);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.glossary-item dt {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-sm);
+}
+.glossary-item dd {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+.glossary-modules {
+  display: block;
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+}
+.glossary-modules a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.glossary-modules a:hover {
+  text-decoration: underline;
+}
+.glossary-modules a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Issue #170 — Parameter Examples */
+.parameter-examples {
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.parameter-examples h4 {
+  font-size: 1.1rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
+}
+.example-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+@media (max-width: 768px) {
+  .example-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.example-card {
+  padding: var(--space-md);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+.example-card h5 {
+  font-size: 1rem;
+  margin-bottom: var(--space-sm);
+  color: var(--color-text);
+}
+.example-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-sm) 0;
+}
+.example-card li {
+  padding: var(--space-xs) 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.example-card code {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.example-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* Issue #171 — Offline Boundary */
+.offline-boundary {
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--color-canvas);
+}
+.offline-boundary header {
+  max-width: 68rem;
+  margin: 0 auto var(--space-xl);
+  text-align: center;
+}
+.offline-boundary h2 {
+  font-size: 1.8rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
+}
+.offline-boundary header p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  font-size: 1.05rem;
+}
+.boundary-grid {
+  max-width: 68rem;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.boundary-card {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.boundary-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
+}
+.boundary-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.boundary-card li {
+  padding: var(--space-sm) 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.boundary-card li:last-child {
+  border-bottom: none;
+}
+.boundary-card strong {
+  color: var(--color-text);
+}
+.boundary-list {
+  margin: 0;
+}
+.boundary-list dt {
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-top: var(--space-md);
+  font-family: monospace;
+}
+.boundary-list dt:first-child {
+  margin-top: 0;
+}
+.boundary-list dd {
+  margin: var(--space-xs) 0 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.boundary-note {
+  grid-column: 1 / -1;
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+}
+.boundary-note p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-md);
+}
+.boundary-note p:last-child {
+  margin-bottom: 0;
+}
+.boundary-highlight {
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  margin-top: var(--space-md);
+}
+.boundary-highlight strong {
+  color: var(--color-accent);
+}
