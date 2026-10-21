@@ -260,15 +260,14 @@ export default function App() {
   const [coverageGuideOpen, setCoverageGuideOpen] = useState(false);
   const [auditGuideOpen, setAuditGuideOpen] = useState(false);
   const [checkedPrerequisites, setCheckedPrerequisites] = useState<Record<string, boolean>>({});
+  const [installFaqOpen, setInstallFaqOpen] = useState(false);
+  const [auditWarningsGuideOpen, setAuditWarningsGuideOpen] = useState(false);
+  const [limitsInterpretationGuideOpen, setLimitsInterpretationGuideOpen] = useState(false);
+  const [multiContractExamplesOpen, setMultiContractExamplesOpen] = useState(false);
   const comparePanelRef = useRef<HTMLDivElement>(null);
-  const [showBackToTop, setShowBackToTop] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
   // #117 — mobile nav toggle
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  // #118 — module table of contents
-  const [tocOpen, setTocOpen] = useState(false);
   // #116 — accessibility statement modal
   const [a11yOpen, setA11yOpen] = useState(false);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
@@ -1404,6 +1403,317 @@ export default function App() {
                   Pair each finding with a focused regression test before finalizing the deployment checklist.
                 </li>
               </ol>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>Guide: Resolving audit warnings</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={auditWarningsGuideOpen}
+              aria-controls="audit-warnings-guide-panel"
+              onClick={() => setAuditWarningsGuideOpen((open) => !open)}
+            >
+              {auditWarningsGuideOpen ? "Hide guide" : "Show guide"}
+            </button>
+          </div>
+          {auditWarningsGuideOpen && (
+            <div id="audit-warnings-guide-panel" className="guide-panel">
+              <p>
+                Common audit warnings fall into three categories: authentication, arithmetic safety, and TTL management.
+                Each category has specific resolution patterns.
+              </p>
+              <h4>Authentication warnings</h4>
+              <ul>
+                <li><strong>Missing require_auth:</strong> Add explicit authorization checks before state-changing operations. Use <code>address.require_auth()</code> to verify caller identity.</li>
+                <li><strong>Unchecked caller privilege:</strong> Validate that the authenticated caller has permission for the requested action using role checks or ownership verification.</li>
+                <li><strong>Authorization bypass:</strong> Ensure all entry points that modify contract state include proper authentication gates before execution.</li>
+              </ul>
+              <h4>Arithmetic safety warnings</h4>
+              <ul>
+                <li><strong>Potential overflow:</strong> Use checked arithmetic operations or validate input ranges. Replace <code>a + b</code> with <code>a.checked_add(b)</code> for critical calculations.</li>
+                <li><strong>Division by zero:</strong> Add explicit zero checks before division operations. Return early or panic with clear error messages.</li>
+                <li><strong>Underflow risk:</strong> Validate that subtraction operands maintain proper ordering. Use <code>checked_sub</code> for balance calculations.</li>
+              </ul>
+              <h4>TTL and storage warnings</h4>
+              <ul>
+                <li><strong>Missing TTL extension:</strong> Call <code>env.storage().instance().extend_ttl()</code> before reading persistent data to prevent expiry-related failures.</li>
+                <li><strong>Unbounded storage growth:</strong> Implement cleanup logic or periodic archival for collections that grow indefinitely. Consider pagination for large datasets.</li>
+                <li><strong>Persistent key without extension:</strong> Always extend TTL when reading critical state. Treat persistent storage as requiring active maintenance.</li>
+              </ul>
+              <p className="guide-note">
+                After addressing warnings, re-run the audit with <code>--strict</code> to confirm all issues are resolved. Add regression tests for each fixed warning.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>Guide: Interpreting resource limit results</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={limitsInterpretationGuideOpen}
+              aria-controls="limits-interpretation-guide-panel"
+              onClick={() => setLimitsInterpretationGuideOpen((open) => !open)}
+            >
+              {limitsInterpretationGuideOpen ? "Hide guide" : "Show guide"}
+            </button>
+          </div>
+          {limitsInterpretationGuideOpen && (
+            <div id="limits-interpretation-guide-panel" className="guide-panel">
+              <p>
+                The <code>soroban-testkit limits</code> command ramps a contract input parameter until execution hits resource boundaries. Understanding the output helps you design scalable contracts.
+              </p>
+              <h4>Reading the results</h4>
+              <ul>
+                <li><strong>Last successful count:</strong> The highest parameter value that completed without exceeding limits. This represents your practical ceiling for production.</li>
+                <li><strong>Instruction count:</strong> Total WASM instructions executed. Stellar contracts have a per-invocation instruction budget; staying well below prevents timeout failures.</li>
+                <li><strong>Memory usage:</strong> Peak memory allocated during execution. High memory usage may indicate inefficient data structures or unnecessary copying.</li>
+                <li><strong>Failed ramp value:</strong> The first parameter value that exceeded limits. This boundary helps you understand where optimization becomes critical.</li>
+              </ul>
+              <h4>Common patterns and what they mean</h4>
+              <dl className="guide-definitions">
+                <dt>Linear scaling with flat memory</dt>
+                <dd>Indicates efficient iteration without extra allocations. This is ideal for batch operations like token transfers.</dd>
+                
+                <dt>Exponential instruction growth</dt>
+                <dd>Suggests nested loops or recursive patterns. Consider flattening algorithms or batching work across multiple transactions.</dd>
+                
+                <dt>Sharp memory increase at boundary</dt>
+                <dd>Points to collection pre-allocation hitting capacity thresholds. Review vector sizing and consider streaming patterns.</dd>
+                
+                <dt>Early instruction ceiling with low memory</dt>
+                <dd>Indicates computation-heavy logic. Look for redundant calculations, expensive cryptographic operations, or unoptimized sorting.</dd>
+                
+                <dt>Memory ceiling before instruction limit</dt>
+                <dd>Signals data structure overhead. Consider using maps instead of vectors for lookups, or splitting large structures across storage keys.</dd>
+              </dl>
+              <h4>Optimization strategies</h4>
+              <ul>
+                <li><strong>Batch size tuning:</strong> Use limits results to set safe default batch sizes in your contract API. Document maximum supported values.</li>
+                <li><strong>Pagination:</strong> If limits are too restrictive, split operations across multiple contract calls with cursor-based continuation.</li>
+                <li><strong>Data structure choice:</strong> High memory usage suggests switching from vectors to iterators, or using compact representations.</li>
+                <li><strong>Algorithm complexity:</strong> Exponential growth indicates the need for more efficient algorithms. Profile and refactor hot paths.</li>
+              </ul>
+              <p className="guide-note">
+                Run limits tests after each optimization to quantify improvements. Track metrics over time to detect performance regressions.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>FAQ: Common CLI installation errors</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={installFaqOpen}
+              aria-controls="install-faq-panel"
+              onClick={() => setInstallFaqOpen((open) => !open)}
+            >
+              {installFaqOpen ? "Hide FAQ" : "Show FAQ"}
+            </button>
+          </div>
+          {installFaqOpen && (
+            <div id="install-faq-panel" className="guide-panel">
+              <h4>cargo install fails with "failed to compile"</h4>
+              <p><strong>Cause:</strong> Outdated Rust toolchain or missing system dependencies.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Update Rust to the latest stable version: <code>rustup update stable</code></li>
+                <li>Ensure you have build essentials: <code>sudo apt install build-essential</code> (Linux) or install Xcode Command Line Tools (macOS)</li>
+                <li>Try installing with <code>--locked</code> flag: <code>cargo install soroban-testkit-cli --locked</code></li>
+              </ol>
+
+              <h4>wasm32v1-none target not found</h4>
+              <p><strong>Cause:</strong> The WebAssembly compilation target isn't installed for your Rust toolchain.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Add the target explicitly: <code>rustup target add wasm32v1-none</code></li>
+                <li>Verify installation: <code>rustup target list | grep wasm32v1</code></li>
+                <li>If the target doesn't exist, update Rust: <code>rustup update</code> (requires Rust 1.84+)</li>
+              </ol>
+
+              <h4>soroban-testkit: command not found</h4>
+              <p><strong>Cause:</strong> Cargo's bin directory isn't in your shell PATH.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Add Cargo bin to PATH. For bash/zsh, add to <code>~/.bashrc</code> or <code>~/.zshrc</code>: <code>export PATH="$HOME/.cargo/bin:$PATH"</code></li>
+                <li>Reload your shell: <code>source ~/.bashrc</code> or open a new terminal</li>
+                <li>Verify: <code>which soroban-testkit</code> should show the binary path</li>
+              </ol>
+
+              <h4>cargo-llvm-cov: not found when running coverage</h4>
+              <p><strong>Cause:</strong> The LLVM coverage tool isn't installed.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Install the tool: <code>cargo install cargo-llvm-cov</code></li>
+                <li>Verify: <code>cargo llvm-cov --version</code></li>
+                <li>If you only need limits or audit, you can skip this installation</li>
+              </ol>
+
+              <h4>Permission denied errors during installation</h4>
+              <p><strong>Cause:</strong> Insufficient permissions for the cargo install directory.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Never use <code>sudo</code> with cargo install. This breaks Rust's user-local installation model.</li>
+                <li>Ensure <code>~/.cargo</code> is owned by your user: <code>ls -la ~/.cargo</code></li>
+                <li>If ownership is wrong, reclaim it: <code>sudo chown -R $USER:$USER ~/.cargo</code></li>
+              </ol>
+
+              <h4>OpenSSL or pkg-config errors on Linux</h4>
+              <p><strong>Cause:</strong> Missing system libraries required for compiling dependencies.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Ubuntu/Debian: <code>sudo apt install pkg-config libssl-dev</code></li>
+                <li>Fedora/RHEL: <code>sudo dnf install pkg-config openssl-devel</code></li>
+                <li>Arch: <code>sudo pacman -S pkg-config openssl</code></li>
+              </ol>
+
+              <h4>stellar-cli installation fails</h4>
+              <p><strong>Cause:</strong> Network issues or crates.io being temporarily unavailable.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Retry with verbose output: <code>cargo install stellar-cli -v</code></li>
+                <li>Check network connectivity and proxy settings</li>
+                <li>Try an alternative mirror if available in your region</li>
+                <li>Install a specific version: <code>cargo install stellar-cli --version 22.0.0</code></li>
+              </ol>
+
+              <p className="guide-note">
+                Still stuck? Check the <a href={INSTALL_GUIDE_URL}>full installation guide</a> or open an issue on the <a href={CORE_REPO_URL}>core repository</a>.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>Examples: Projects with multiple contracts</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={multiContractExamplesOpen}
+              aria-controls="multi-contract-examples-panel"
+              onClick={() => setMultiContractExamplesOpen((open) => !open)}
+            >
+              {multiContractExamplesOpen ? "Hide examples" : "Show examples"}
+            </button>
+          </div>
+          {multiContractExamplesOpen && (
+            <div id="multi-contract-examples-panel" className="guide-panel">
+              <p>
+                Soroban projects often contain multiple contracts in a Cargo workspace. Each workflow supports this pattern with specific conventions.
+              </p>
+              
+              <h4>Workspace structure</h4>
+              <pre role="region" aria-label="Example multi-contract workspace structure" tabIndex={0}>
+                <code>{`project-root/
+├── Cargo.toml          # Workspace manifest
+├── contracts/
+│   ├── token/
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   ├── escrow/
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   └── auction/
+│       ├── Cargo.toml
+│       └── src/lib.rs
+└── tests/
+    └── integration_tests.rs`}</code>
+              </pre>
+
+              <h4>Coverage: Test all contracts together</h4>
+              <p>Run coverage from the workspace root to include all contract crates:</p>
+              <pre role="region" aria-label="Multi-contract coverage command" tabIndex={0}>
+                <code>soroban-testkit coverage . --format html --open</code>
+              </pre>
+              <p>
+                The workspace-aware coverage report aggregates results across all members. Each contract's test coverage appears in the unified HTML output.
+              </p>
+
+              <h4>Coverage: Single contract in workspace</h4>
+              <p>Target a specific contract by providing its subdirectory:</p>
+              <pre role="region" aria-label="Single contract coverage command" tabIndex={0}>
+                <code>soroban-testkit coverage contracts/escrow --format html</code>
+              </pre>
+              <p>This isolates coverage to just the escrow contract and its tests, ignoring sibling contracts.</p>
+
+              <h4>Audit: Workspace-wide scan</h4>
+              <p>Audit all contract sources from the workspace root:</p>
+              <pre role="region" aria-label="Workspace audit command" tabIndex={0}>
+                <code>soroban-testkit audit contracts --strict</code>
+              </pre>
+              <p>The scanner recursively processes all <code>.rs</code> files under <code>contracts/</code>, reporting findings across every contract.</p>
+
+              <h4>Audit: Per-contract scanning</h4>
+              <p>Focus the audit on a single contract's source directory:</p>
+              <pre role="region" aria-label="Single contract audit command" tabIndex={0}>
+                <code>soroban-testkit audit contracts/token/src</code>
+              </pre>
+              <p>This scans only the token contract, useful for incremental security reviews.</p>
+
+              <h4>Limits: Testing each contract separately</h4>
+              <p>Each contract compiles to its own WASM artifact. Test limits for the auction contract:</p>
+              <pre role="region" aria-label="Limits command for auction contract" tabIndex={0}>
+                <code>{`soroban-testkit limits \\
+  --contract target/wasm32v1-none/release/auction.wasm \\
+  --fn place_bid \\
+  --ramp bidders`}</code>
+              </pre>
+              <p>Repeat for each contract, adjusting the <code>--contract</code> path, <code>--fn</code>, and <code>--ramp</code> parameters.</p>
+
+              <h4>Limits: Batch testing script</h4>
+              <p>Automate limits testing across multiple contracts with a shell script:</p>
+              <pre role="region" aria-label="Batch limits testing script" tabIndex={0}>
+                <code>{`#!/bin/bash
+for contract in token escrow auction; do
+  echo "Testing $contract..."
+  soroban-testkit limits \\
+    --contract target/wasm32v1-none/release/$contract.wasm \\
+    --fn execute \\
+    --ramp items
+done`}</code>
+              </pre>
+
+              <h4>Build optimization for workspaces</h4>
+              <p>When working with multiple contracts, build them all at once to share dependencies:</p>
+              <pre role="region" aria-label="Workspace build command" tabIndex={0}>
+                <code>{`cargo build --release --target wasm32v1-none --workspace`}</code>
+              </pre>
+              <p>
+                This ensures all contracts are up-to-date before running limits tests or deploying.
+              </p>
+
+              <h4>Cargo.toml workspace configuration</h4>
+              <p>Define workspace members in the root <code>Cargo.toml</code>:</p>
+              <pre role="region" aria-label="Workspace Cargo.toml example" tabIndex={0}>
+                <code>{`[workspace]
+members = [
+  "contracts/token",
+  "contracts/escrow",
+  "contracts/auction",
+]
+resolver = "2"
+
+[workspace.dependencies]
+soroban-sdk = "27.0.0"
+soroban-testkit = "0.2.0"`}</code>
+              </pre>
+              <p>
+                Individual contract <code>Cargo.toml</code> files inherit shared dependencies using <code>workspace = true</code>.
+              </p>
+
+              <p className="guide-note">
+                All three workflows (coverage, audit, limits) respect Cargo workspace conventions. Point the CLI at the workspace root for aggregate analysis or at specific subdirectories for focused testing.
+              </p>
             </div>
           )}
         </article>
