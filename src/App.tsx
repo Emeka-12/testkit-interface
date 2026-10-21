@@ -2,6 +2,8 @@ import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState }
 import {
   buildCommand,
   formatCommandLine,
+  formatCommandWithComments,
+  formatCommandAsScript,
   modules,
   moduleCategories,
   type CommandName,
@@ -235,6 +237,10 @@ export default function App() {
   const [shell, setShell] = useState<"bash" | "zsh" | "fish" | "sh">("bash");
   const [copied, setCopied] = useState(false);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
+  const [copiedWithComments, setCopiedWithComments] = useState(false);
+  const [copiedAsScript, setCopiedAsScript] = useState(false);
+  // Issue #143: Command history for restore functionality
+  const [commandHistory, setCommandHistory] = useState<CommandOptions[]>([]);
   // Copy buttons change their label, which screen readers often skip; this
   // polite live region announces the result explicitly (#108).
   const [announcement, setAnnouncement] = useState("");
@@ -261,14 +267,9 @@ export default function App() {
   const [auditGuideOpen, setAuditGuideOpen] = useState(false);
   const [checkedPrerequisites, setCheckedPrerequisites] = useState<Record<string, boolean>>({});
   const comparePanelRef = useRef<HTMLDivElement>(null);
-  const [showBackToTop, setShowBackToTop] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
   // #117 — mobile nav toggle
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  // #118 — module table of contents
-  const [tocOpen, setTocOpen] = useState(false);
   // #116 — accessibility statement modal
   const [a11yOpen, setA11yOpen] = useState(false);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
@@ -400,6 +401,56 @@ export default function App() {
     setMultilineEditor(false);
   };
 
+  // Issue #141: Reset to defaults for active workflow only
+  const resetToDefaults = () => {
+    if (!window.confirm(`Reset ${command} workflow to its default values?`)) return;
+    
+    if (command === "coverage") {
+      setPath(".");
+      setFormat("html");
+      setOpen(true);
+      setCoverageOrder(defaultCoverageOrder);
+    } else if (command === "limits") {
+      setPath("");
+      setFn("batch_payout");
+      setRamp("recipients");
+    } else if (command === "audit") {
+      setPath("");
+      setStrict(true);
+    }
+    setShell("bash");
+    setMultilineEditor(false);
+  };
+
+  // Issue #143: Save current configuration to history
+  const saveToHistory = () => {
+    setCommandHistory((prev) => {
+      const newHistory = [{ ...options }, ...prev];
+      // Keep only last 10 commands
+      return newHistory.slice(0, 10);
+    });
+  };
+
+  // Issue #143: Restore previous command from history
+  const restorePrevious = () => {
+    if (commandHistory.length === 0) return;
+    
+    const previous = commandHistory[0];
+    setCommand(previous.command);
+    setPath(previous.path);
+    setFormat(previous.format);
+    setOpen(previous.open);
+    setFn(previous.fn);
+    setRamp(previous.ramp);
+    setStrict(previous.strict);
+    if (previous.shell) setShell(previous.shell);
+    if (previous.optionalArgOrder) setCoverageOrder(previous.optionalArgOrder);
+    
+    // Remove from history after restoring
+    setCommandHistory((prev) => prev.slice(1));
+    setAnnouncement("Previous command restored");
+  };
+
   const applyAdvancedCommand = () => {
     const tokens = advancedCommand.match(/"[^"]+"|'[^']+'|[^\s]+/g) ?? [];
     if (tokens.length === 0) return;
@@ -439,10 +490,37 @@ export default function App() {
 
   const copy = async () => {
     await copyToClipboard(generated);
+    saveToHistory(); // Save to history when copying
     setCopied(true);
     setAnnouncement("Command copied to clipboard");
     window.setTimeout(() => {
       setCopied(false);
+      setAnnouncement("");
+    }, 1600);
+  };
+
+  // Issue #144: Copy command with explanatory comments
+  const copyWithComments = async () => {
+    const commented = formatCommandWithComments(options);
+    await copyToClipboard(commented);
+    saveToHistory(); // Save to history when copying
+    setCopiedWithComments(true);
+    setAnnouncement("Command with comments copied to clipboard");
+    window.setTimeout(() => {
+      setCopiedWithComments(false);
+      setAnnouncement("");
+    }, 1600);
+  };
+
+  // Issue #145: Copy command as reusable shell script
+  const copyAsScript = async () => {
+    const script = formatCommandAsScript(options);
+    await copyToClipboard(script);
+    saveToHistory(); // Save to history when copying
+    setCopiedAsScript(true);
+    setAnnouncement("Shell script copied to clipboard");
+    window.setTimeout(() => {
+      setCopiedAsScript(false);
       setAnnouncement("");
     }, 1600);
   };
@@ -883,6 +961,26 @@ export default function App() {
             <button type="button" className="button secondary" onClick={resetBuilder}>
               Reset builder
             </button>
+            {/* Issue #141: Reset to defaults for active workflow */}
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={resetToDefaults}
+              aria-label={`Reset ${command} workflow to defaults`}
+            >
+              Reset {command} to defaults
+            </button>
+            {/* Issue #143: Restore previous command */}
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={restorePrevious}
+              disabled={commandHistory.length === 0}
+              aria-label="Restore previous command"
+              title={commandHistory.length === 0 ? "No previous commands" : `Restore previous ${commandHistory[0]?.command || ''} command`}
+            >
+              Restore previous ({commandHistory.length})
+            </button>
           </div>
 
           <section className="summary-card" aria-labelledby="command-summary-heading">
@@ -1115,6 +1213,26 @@ export default function App() {
           <div className="output">
             <code data-testid="command-output">{highlightCommand(generated)}</code>
             <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+          </div>
+
+          {/* Issue #144 & #145: Additional copy options */}
+          <div className="copy-options">
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={copyWithComments}
+              aria-label="Copy command with explanatory comments"
+            >
+              {copiedWithComments ? "Copied with comments" : "Copy with comments"}
+            </button>
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={copyAsScript}
+              aria-label="Copy as shell script"
+            >
+              {copiedAsScript ? "Script copied" : "Copy as script"}
+            </button>
           </div>
 
           <div className="advanced-command-block">
