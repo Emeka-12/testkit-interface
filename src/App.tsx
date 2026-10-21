@@ -24,7 +24,7 @@ const navSectionIds = navSections.map((section) => section.id);
 
 // Which CLI workflows are most useful for each module (#130). Keyed by module
 // name so adding a module without a mapping fails type-checking.
-const moduleRelatedWorkflows: Record<(typeof modules)[number][0], CommandName[]> = {
+const moduleRelatedWorkflows: Record<(typeof modules)[number]["name"], CommandName[]> = {
   core: ["coverage"],
   ledger: ["audit"],
   money: ["audit", "limits"],
@@ -239,12 +239,16 @@ export default function App() {
   // polite live region announces the result explicitly (#108).
   const [announcement, setAnnouncement] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<ModuleCategory | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const moduleSearchRef = useRef<HTMLInputElement>(null);
 
   // Resetting from the empty state removes the button that had focus, so move
   // focus back to the search box instead of dropping it to <body> (#123).
   const resetModuleFilter = () => {
     setModuleFilter("");
+    setCategoryFilter(null);
     moduleSearchRef.current?.focus();
   };
   const [coverageOrder, setCoverageOrder] = useState<OptionalArgKey[]>(defaultCoverageOrder);
@@ -625,100 +629,21 @@ export default function App() {
       </section>
 
       <section className="modules" id="modules" tabIndex={-1}>
-        <header>
-          <p className="eyebrow">One prelude. Seven focused modules.</p>
-          <h2>Everything a serious contract test needs.</h2>
-          {/* #118 — module table of contents */}
-          <nav className="module-toc" aria-label="Module table of contents">
-            <button
-              type="button"
-              className="module-toc-toggle"
-              aria-expanded={tocOpen}
-              aria-controls="module-toc-list"
-              onClick={() => setTocOpen(!tocOpen)}
-            >
-              {tocOpen ? "Hide" : "Show"} table of contents
+        {selectedModuleData ? (
+          <article className="module-detail">
+            <nav aria-label="Breadcrumb navigation">
+              <a href="#top">Home</a>
+              <span aria-hidden="true">/</span>
+              <a href="#modules" onClick={() => setSelectedModule(null)}>Modules</a>
+              <span aria-current="page">{selectedModuleData.name}</span>
+            </nav>
+            <p className="eyebrow">{selectedModuleData.category}</p>
+            <h2>{selectedModuleData.name}</h2>
+            <p>{selectedModuleData.description}</p>
+            <button type="button" className="button secondary" onClick={() => setSelectedModule(null)}>
+              Back to all modules
             </button>
-            {tocOpen && (
-              <ol id="module-toc-list" className="module-toc-list">
-                {modules.map(([name, description]) => (
-                  <li key={name}>
-                    <a
-                      href={`#module-${name}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        document.getElementById(`module-${name}`)?.scrollIntoView({ behavior: "smooth" });
-                      }}
-                    >
-                      <strong>{name}</strong> — {description}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </nav>
-          <div className="module-filter-bar">
-            <label htmlFor="module-search" className="sr-only">
-              Filter modules
-            </label>
-            <input
-              id="module-search"
-              ref={moduleSearchRef}
-              type="search"
-              className="module-filter-input"
-              placeholder="Filter modules by name or description..."
-              value={moduleFilter}
-              onChange={(event) => setModuleFilter(event.target.value)}
-              aria-label="Filter modules"
-            />
-            {moduleFilter && (
-              <button
-                type="button"
-                className="button secondary"
-                onClick={() => setSelectedModule(null)}
-              >
-                ← Back to all modules
-              </button>
-            )}
-          </div>
-        </header>
-
-        {filteredModules.length > 0 ? (
-          <div className="module-grid" id="module-grid">
-            {filteredModules.map(([name, description], index) => (
-              <article key={name}>
-                <span aria-hidden="true">0{index + 1}</span>
-                <h3>{name}</h3>
-                <p>{description}</p>
-                <div className="module-card-links">
-                  <a href="#commands" aria-label={`Open the command builder from the ${name} module`}>
-                    Command builder
-                  </a>
-                  {moduleRelatedWorkflows[name].map((workflow) => (
-                    <a
-                      key={workflow}
-                      href="#commands"
-                      aria-label={`Open the ${workflow} workflow related to ${name}`}
-                      onClick={() => setCommand(workflow)}
-                    >
-                      {workflow}
-                    </a>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="module-empty-state" role="status" aria-live="polite">
-            <div className="module-empty-icon" aria-hidden="true">
-              ∅
-            </div>
-            <h3>No modules match &ldquo;{moduleFilter}&rdquo;</h3>
-            <p>No testing modules found matching your filter criteria. Try adjusting your search term.</p>
-            <button type="button" className="button secondary" onClick={resetModuleFilter}>
-              Reset filter
-            </button>
-          </div>
+          </article>
         ) : (
           <>
             <header>
@@ -726,10 +651,11 @@ export default function App() {
               <h2>Everything a serious contract test needs.</h2>
               <div className="module-filter-bar">
                 <label htmlFor="module-search" className="sr-only">
-                  Search modules by name or description
+                  Filter modules
                 </label>
                 <input
                   id="module-search"
+                  ref={moduleSearchRef}
                   type="search"
                   className="module-filter-input"
                   placeholder="Search modules by name or description… (press /)"
@@ -774,25 +700,33 @@ export default function App() {
             {filteredModules.length > 0 ? (
               <div className="module-grid" id="module-grid">
                 {filteredModules.map((mod, index) => (
-                  <article
-                    key={mod.name}
-                    id={`module-${mod.name}`}
-                    className="module-card"
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`View details for ${mod.name} module`}
-                    onClick={() => setSelectedModule(mod.name)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSelectedModule(mod.name);
-                      }
-                    }}
-                  >
-                    <span>0{index + 1}</span>
-                    <h3>{mod.name}</h3>
-                    <p>{mod.description}</p>
-                    <span className="module-category-tag">{mod.category}</span>
+                  <article key={mod.name} className="module-card">
+                    <button
+                      type="button"
+                      className="module-card-select"
+                      aria-label={`View details for ${mod.name} module`}
+                      onClick={() => setSelectedModule(mod.name)}
+                    >
+                      <span aria-hidden="true">0{index + 1}</span>
+                      <h3>{mod.name}</h3>
+                      <p>{mod.description}</p>
+                      <span className="module-category-tag">{mod.category}</span>
+                    </button>
+                    <div className="module-card-links">
+                      <a href="#commands" aria-label={`Open the command builder from the ${mod.name} module`}>
+                        Command builder
+                      </a>
+                      {moduleRelatedWorkflows[mod.name].map((workflow) => (
+                        <a
+                          key={workflow}
+                          href="#commands"
+                          aria-label={`Open the ${workflow} workflow related to ${mod.name}`}
+                          onClick={() => setCommand(workflow)}
+                        >
+                          {workflow}
+                        </a>
+                      ))}
+                    </div>
                   </article>
                 ))}
               </div>
@@ -801,20 +735,17 @@ export default function App() {
                 <div className="module-empty-icon" aria-hidden="true">
                   ∅
                 </div>
-                <h3>No modules match your filters</h3>
+                <h3>{moduleFilter ? `No modules match “${moduleFilter}”` : "No modules match your filters"}</h3>
                 <p>
-                  {moduleFilter
-                    ? `No testing modules found matching “${moduleFilter}”${categoryFilter ? ` in ${categoryFilter}` : ""}.`
-                    : `No testing modules in the ${categoryFilter} category.`}
+                  {categoryFilter
+                    ? `No testing modules in the ${categoryFilter} category match this search.`
+                    : "No testing modules match this search."}
                   {" "}Try adjusting your filters.
                 </p>
                 <button
                   type="button"
                   className="button secondary"
-                  onClick={() => {
-                    setModuleFilter("");
-                    setCategoryFilter(null);
-                  }}
+                  onClick={resetModuleFilter}
                 >
                   Reset filters
                 </button>
@@ -1493,9 +1424,9 @@ export default function App() {
           </div>
           <div className="reference-grid">
             <article className="reference-card">
-              <h3>Ready-to-run command</h3>
+              <h3>Command shape</h3>
               <pre aria-label="Resource limits command example"><code>{"soroban-testkit limits \\\n  --contract target/wasm32v1-none/release/contract.wasm \\\n  --fn batch_payout \\\n  --ramp recipients"}</code></pre>
-              <p>Replace the function and ramp names with exported contract inputs from your ABI.</p>
+              <p>Use the compiled WASM path and exported function and input names from your contract.</p>
             </article>
             <article className="reference-card">
               <h3>Arguments</h3>
@@ -1515,6 +1446,48 @@ export default function App() {
               <p className="reference-note">Reads: local WASM and export metadata. Writes: none.</p>
             </article>
           </div>
+          <article className="reference-card reference-example" aria-labelledby="limits-example-heading">
+            <h3 id="limits-example-heading">Run a complete example</h3>
+            <p>
+              This uses the public Sororail batch-payout contract, whose <code>execute_equal</code> entry point
+              ramps the <code>recipients</code> input. Install Rust 1.91 or later and
+              {" "}<a href={INSTALL_GUIDE_URL}>install soroban-testkit</a> before starting.
+            </p>
+            <ol className="reference-example-steps">
+              <li>
+                <h4>Get the contract workspace</h4>
+                <pre role="region" aria-label="Clone the Sororail contract workspace" tabIndex={0}>
+                  <code>{"git clone https://github.com/Sororail/sororail-contracts.git\ncd sororail-contracts"}</code>
+                </pre>
+              </li>
+              <li>
+                <h4>Add the WASM target</h4>
+                <pre role="region" aria-label="Add the wasm32v1-none target" tabIndex={0}>
+                  <code>rustup target add wasm32v1-none</code>
+                </pre>
+              </li>
+              <li>
+                <h4>Build the batch-payout contract</h4>
+                <pre role="region" aria-label="Build the batch-payout contract" tabIndex={0}>
+                  <code>
+                    cargo build --release --target wasm32v1-none --manifest-path contracts/batch_payout/Cargo.toml
+                  </code>
+                </pre>
+              </li>
+              <li>
+                <h4>Run the limits workflow from the workspace root</h4>
+                <pre role="region" aria-label="Run the limits example" tabIndex={0}>
+                  <code>
+                    {"soroban-testkit limits \\\n  --contract target/wasm32v1-none/release/sororail_batch_payout.wasm \\\n  --fn execute_equal \\\n  --ramp recipients"}
+                  </code>
+                </pre>
+              </li>
+            </ol>
+            <p className="reference-note">
+              The result reports the last successful recipient count along with instruction and memory usage;
+              measured limits can vary with the contract build and runtime.
+            </p>
+          </article>
         </section>
       </section>
 
