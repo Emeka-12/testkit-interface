@@ -1,25 +1,32 @@
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildCommand,
   formatCommandLine,
+  formatCommandWithComments,
+  formatCommandAsScript,
   modules,
+  moduleCategories,
   type CommandName,
+  type ModuleCategory,
   type OptionalArgKey,
+  localFileGuides,
 } from "./testkit";
 import { copyToClipboard } from "./clipboard";
 import { CORE_REPO_URL, INSTALL_GUIDE_URL, INTERFACE_REPO_URL } from "./links";
 import { useActiveSection } from "./useActiveSection";
+import "./styles.css";
 
 const navSections = [
   { id: "install", label: "Install" },
   { id: "modules", label: "Modules" },
   { id: "commands", label: "Commands" },
+  { id: "limits-reference", label: "Limits reference" },
 ] as const;
 const navSectionIds = navSections.map((section) => section.id);
 
 // Which CLI workflows are most useful for each module (#130). Keyed by module
 // name so adding a module without a mapping fails type-checking.
-const moduleRelatedWorkflows: Record<(typeof modules)[number][0], CommandName[]> = {
+const moduleRelatedWorkflows: Record<(typeof modules)[number]["name"], CommandName[]> = {
   core: ["coverage"],
   ledger: ["audit"],
   money: ["audit", "limits"],
@@ -28,6 +35,84 @@ const moduleRelatedWorkflows: Record<(typeof modules)[number][0], CommandName[]>
   auth: ["audit"],
   ttl: ["audit"],
 };
+
+// Issue #168 — Module feature matrix
+const testConcerns = [
+  "Deterministic execution",
+  "Time manipulation",
+  "Balance tracking",
+  "Event capture",
+  "Token mocking",
+  "Auth simulation",
+  "Storage lifecycle",
+] as const;
+
+type TestConcern = (typeof testConcerns)[number];
+
+const moduleFeatureMatrix: Record<(typeof modules)[number]["name"], TestConcern[]> = {
+  core: ["Deterministic execution"],
+  ledger: ["Time manipulation", "Deterministic execution"],
+  money: ["Balance tracking"],
+  events: ["Event capture"],
+  tokens: ["Token mocking", "Balance tracking"],
+  auth: ["Auth simulation"],
+  ttl: ["Storage lifecycle"],
+};
+
+// Issue #169 — Glossary terms
+interface GlossaryTerm {
+  term: string;
+  definition: string;
+  relatedModules?: string[];
+}
+
+const glossary: GlossaryTerm[] = [
+  {
+    term: "TestEnv",
+    definition: "Deterministic test environment that isolates contract execution from external state.",
+    relatedModules: ["core"],
+  },
+  {
+    term: "Ledger time",
+    definition: "Simulated blockchain timestamp that can be controlled in tests for time-dependent logic.",
+    relatedModules: ["ledger"],
+  },
+  {
+    term: "Conservation checks",
+    definition: "Assertions verifying that token balances remain consistent across transfers and operations.",
+    relatedModules: ["money"],
+  },
+  {
+    term: "Event assertion",
+    definition: "Typed validation of contract-emitted events to ensure correct state change notifications.",
+    relatedModules: ["events"],
+  },
+  {
+    term: "Test double",
+    definition: "Mock implementation of the Stellar Asset Contract for isolated testing without deployment.",
+    relatedModules: ["tokens"],
+  },
+  {
+    term: "Auth matrix",
+    definition: "Multi-actor authorization framework simulating privilege and access control scenarios.",
+    relatedModules: ["auth"],
+  },
+  {
+    term: "TTL",
+    definition: "Time-to-live: storage entry lifetime simulation for testing expiry and restoration logic.",
+    relatedModules: ["ttl"],
+  },
+  {
+    term: "Adversarial values",
+    definition: "Edge-case monetary inputs designed to expose overflow, underflow, and precision bugs.",
+    relatedModules: ["money"],
+  },
+  {
+    term: "Prelude",
+    definition: "Unified import bringing all focused testing modules into scope with a single use statement.",
+    relatedModules: ["core"],
+  },
+];
 
 const descriptions: Record<CommandName, string> = {
   coverage: "Generate contract-test coverage through cargo-llvm-cov.",
@@ -230,16 +315,24 @@ export default function App() {
   const [shell, setShell] = useState<"bash" | "zsh" | "fish" | "sh">("bash");
   const [copied, setCopied] = useState(false);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
+  const [copiedWithComments, setCopiedWithComments] = useState(false);
+  const [copiedAsScript, setCopiedAsScript] = useState(false);
+  // Issue #143: Command history for restore functionality
+  const [commandHistory, setCommandHistory] = useState<CommandOptions[]>([]);
   // Copy buttons change their label, which screen readers often skip; this
   // polite live region announces the result explicitly (#108).
   const [announcement, setAnnouncement] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<ModuleCategory | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const moduleSearchRef = useRef<HTMLInputElement>(null);
 
   // Resetting from the empty state removes the button that had focus, so move
   // focus back to the search box instead of dropping it to <body> (#123).
   const resetModuleFilter = () => {
     setModuleFilter("");
+    setCategoryFilter(null);
     moduleSearchRef.current?.focus();
   };
   const [coverageOrder, setCoverageOrder] = useState<OptionalArgKey[]>(defaultCoverageOrder);
@@ -251,12 +344,43 @@ export default function App() {
   const [coverageGuideOpen, setCoverageGuideOpen] = useState(false);
   const [auditGuideOpen, setAuditGuideOpen] = useState(false);
   const [checkedPrerequisites, setCheckedPrerequisites] = useState<Record<string, boolean>>({});
+  const [installFaqOpen, setInstallFaqOpen] = useState(false);
+  const [auditWarningsGuideOpen, setAuditWarningsGuideOpen] = useState(false);
+  const [limitsInterpretationGuideOpen, setLimitsInterpretationGuideOpen] = useState(false);
+  const [multiContractExamplesOpen, setMultiContractExamplesOpen] = useState(false);
   const comparePanelRef = useRef<HTMLDivElement>(null);
+  // #117 — mobile nav toggle
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  // #116 — accessibility statement modal
+  const [a11yOpen, setA11yOpen] = useState(false);
+  // #174 — release notes modal
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [activeSection, setActiveSection] = useActiveSection(navSectionIds);
+  // Issue #168 — Feature matrix visibility (reserved for future interactivity)
+  const [_featureMatrixOpen, _setFeatureMatrixOpen] = useState(false);
+  // Issue #169 — Glossary visibility (reserved for future interactivity)
+  const [_glossaryOpen, _setGlossaryOpen] = useState(false);
+  // #147 — command history UI toggle
+  const [historyOpen, setHistoryOpen] = useState(false);
+  
+  // Prevent unused variable warnings
+  void _featureMatrixOpen;
+  void _setFeatureMatrixOpen;
+  void _glossaryOpen;
+  void _setGlossaryOpen;
 
   useEffect(() => {
+    document.documentElement.style.scrollPaddingTop = "78px";
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
+      if (!event.ctrlKey && !event.metaKey) {
+        // "/" focuses the module search field (#127)
+        if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement)?.tagName ?? "")) {
+          event.preventDefault();
+          document.getElementById("module-search")?.focus();
+        }
+        return;
+      }
 
       switch (event.key) {
         case "1":
@@ -270,6 +394,9 @@ export default function App() {
           break;
         case "4":
           document.getElementById("commands")?.scrollIntoView({ behavior: "smooth" });
+          break;
+        case "5":
+          document.getElementById("limits-reference")?.scrollIntoView({ behavior: "smooth" });
           break;
       }
     };
@@ -320,12 +447,29 @@ export default function App() {
 
   const filteredModules = useMemo(() => {
     const q = moduleFilter.trim().toLowerCase();
-    if (!q) return modules;
-    return modules.filter(
-      ([name, description]) =>
-        name.toLowerCase().includes(q) || description.toLowerCase().includes(q)
-    );
-  }, [moduleFilter]);
+    return modules.filter((m) => {
+      if (categoryFilter && m.category !== categoryFilter) return false;
+      if (!q) return true;
+      return m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q);
+    });
+  }, [moduleFilter, categoryFilter]);
+
+  const selectedModuleData = useMemo(
+    () => (selectedModule ? modules.find((m) => m.name === selectedModule) ?? null : null),
+    [selectedModule],
+  );
+
+  // Back-to-top visibility after long scrolling (#125)
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 480);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("top")?.focus?.();
+  }, []);
 
   const moveOptionalArg = (key: OptionalArgKey, direction: "up" | "down") => {
     setCoverageOrder((current) => {
@@ -351,6 +495,56 @@ export default function App() {
     setShell("bash");
     setCoverageOrder(defaultCoverageOrder);
     setMultilineEditor(false);
+  };
+
+  // Issue #141: Reset to defaults for active workflow only
+  const resetToDefaults = () => {
+    if (!window.confirm(`Reset ${command} workflow to its default values?`)) return;
+    
+    if (command === "coverage") {
+      setPath(".");
+      setFormat("html");
+      setOpen(true);
+      setCoverageOrder(defaultCoverageOrder);
+    } else if (command === "limits") {
+      setPath("");
+      setFn("batch_payout");
+      setRamp("recipients");
+    } else if (command === "audit") {
+      setPath("");
+      setStrict(true);
+    }
+    setShell("bash");
+    setMultilineEditor(false);
+  };
+
+  // Issue #143: Save current configuration to history
+  const saveToHistory = () => {
+    setCommandHistory((prev) => {
+      const newHistory = [{ ...options }, ...prev];
+      // Keep only last 10 commands
+      return newHistory.slice(0, 10);
+    });
+  };
+
+  // Issue #143: Restore previous command from history
+  const restorePrevious = () => {
+    if (commandHistory.length === 0) return;
+    
+    const previous = commandHistory[0];
+    setCommand(previous.command);
+    setPath(previous.path);
+    setFormat(previous.format);
+    setOpen(previous.open);
+    setFn(previous.fn);
+    setRamp(previous.ramp);
+    setStrict(previous.strict);
+    if (previous.shell) setShell(previous.shell);
+    if (previous.optionalArgOrder) setCoverageOrder(previous.optionalArgOrder);
+    
+    // Remove from history after restoring
+    setCommandHistory((prev) => prev.slice(1));
+    setAnnouncement("Previous command restored");
   };
 
   const applyAdvancedCommand = () => {
@@ -392,10 +586,37 @@ export default function App() {
 
   const copy = async () => {
     await copyToClipboard(generated);
+    saveToHistory(); // Save to history when copying
     setCopied(true);
     setAnnouncement("Command copied to clipboard");
     window.setTimeout(() => {
       setCopied(false);
+      setAnnouncement("");
+    }, 1600);
+  };
+
+  // Issue #144: Copy command with explanatory comments
+  const copyWithComments = async () => {
+    const commented = formatCommandWithComments(options);
+    await copyToClipboard(commented);
+    saveToHistory(); // Save to history when copying
+    setCopiedWithComments(true);
+    setAnnouncement("Command with comments copied to clipboard");
+    window.setTimeout(() => {
+      setCopiedWithComments(false);
+      setAnnouncement("");
+    }, 1600);
+  };
+
+  // Issue #145: Copy command as reusable shell script
+  const copyAsScript = async () => {
+    const script = formatCommandAsScript(options);
+    await copyToClipboard(script);
+    saveToHistory(); // Save to history when copying
+    setCopiedAsScript(true);
+    setAnnouncement("Shell script copied to clipboard");
+    window.setTimeout(() => {
+      setCopiedAsScript(false);
       setAnnouncement("");
     }, 1600);
   };
@@ -408,6 +629,22 @@ export default function App() {
       setCopiedStep(null);
       setAnnouncement("");
     }, 1600);
+  };
+
+  // #146 — download generated command as shell script
+  const downloadCommand = () => {
+    const scriptContent = `#!/bin/bash\n\n# Generated by Soroban Testkit Interface\n# ${new Date().toISOString()}\n\n${generated}\n`;
+    const blob = new Blob([scriptContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `soroban-testkit-${command}.sh`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setAnnouncement("Command script downloaded");
+    window.setTimeout(() => setAnnouncement(""), 1600);
   };
 
   const toggleComparison = () => {
@@ -460,19 +697,34 @@ export default function App() {
           <span className="brand-mark">S</span>
           <span>Soroban Testkit</span>
         </a>
-        <div className="nav-links">
+        {/* #117 — accessible mobile nav toggle */}
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-menu"
+          aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <span aria-hidden="true">{mobileMenuOpen ? "✕" : "☰"}</span>
+        </button>
+        <div className="nav-links" id="mobile-menu" ref={mobileMenuRef} data-open={mobileMenuOpen}>
           {navSections.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
               aria-current={activeSection === section.id ? "location" : undefined}
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => { setActiveSection(section.id); setMobileMenuOpen(false); }}
               onFocus={() => setActiveSection(section.id)}
             >
               {section.label}
             </a>
           ))}
           <a href="https://github.com/soroban-testkit/testkit-blockchain">GitHub ↗</a>
+          {/* #116 — accessibility statement link */}
+          <button type="button" className="nav-a11y-link" onClick={() => { setA11yOpen(true); setMobileMenuOpen(false); }}>
+            Accessibility
+          </button>
         </div>
       </nav>
 
@@ -567,74 +819,224 @@ export default function App() {
       </section>
 
       <section className="modules" id="modules" aria-labelledby="modules-heading" tabIndex={-1}>
-        <header>
-          <p className="eyebrow">One prelude. Seven focused modules.</p>
-          <h2 id="modules-heading">Everything a serious contract test needs.</h2>
-          <div className="module-filter-bar">
-            <label htmlFor="module-search" className="sr-only">
-              Filter modules
-            </label>
-            <input
-              id="module-search"
-              ref={moduleSearchRef}
-              type="search"
-              className="module-filter-input"
-              placeholder="Filter modules by name or description..."
-              value={moduleFilter}
-              onChange={(event) => setModuleFilter(event.target.value)}
-              aria-label="Filter modules"
-            />
-            {moduleFilter && (
-              <button
-                type="button"
-                className="module-filter-clear"
-                onClick={() => setModuleFilter("")}
-                aria-label="Clear module filter"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </header>
-
-        {filteredModules.length > 0 ? (
-          <div className="module-grid" id="module-grid">
-            {filteredModules.map(([name, description], index) => (
-              <article key={name} aria-labelledby={`module-heading-${name}`}>
-                <span aria-hidden="true">0{index + 1}</span>
-                <h3 id={`module-heading-${name}`}>{name}</h3>
-                <p>{description}</p>
-                <div className="module-card-links" role="group" aria-label={`Workflows for ${name} module`}>
-                  <h4 className="sr-only">Available workflows</h4>
-                  <a href="#commands" aria-label={`Open the command builder from the ${name} module`}>
-                    Command builder
-                  </a>
-                  {moduleRelatedWorkflows[name].map((workflow) => (
-                    <a
-                      key={workflow}
-                      href="#commands"
-                      aria-label={`Open the ${workflow} workflow related to ${name}`}
-                      onClick={() => setCommand(workflow)}
-                    >
-                      {workflow}
-                    </a>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="module-empty-state" role="status" aria-live="polite" aria-labelledby="module-empty-heading">
-            <div className="module-empty-icon" aria-hidden="true">
-              ∅
-            </div>
-            <h3 id="module-empty-heading">No modules match &ldquo;{moduleFilter}&rdquo;</h3>
-            <p>No testing modules found matching your filter criteria. Try adjusting your search term.</p>
-            <button type="button" className="button secondary" onClick={resetModuleFilter}>
-              Reset filter
+        {selectedModuleData ? (
+          <article className="module-detail">
+            {/* #136 — visible page title for deep-linked views */}
+            <h1 className="sr-only">{selectedModuleData.name} Module</h1>
+            <nav aria-label="Breadcrumb navigation">
+              <a href="#top">Home</a>
+              <span aria-hidden="true">/</span>
+              <a href="#modules" onClick={() => setSelectedModule(null)}>Modules</a>
+              <span aria-current="page">{selectedModuleData.name}</span>
+            </nav>
+            <p className="eyebrow">{selectedModuleData.category}</p>
+            <h2 id="modules-heading">{selectedModuleData.name}</h2>
+            <p>{selectedModuleData.description}</p>
+            <button type="button" className="button secondary" onClick={() => setSelectedModule(null)}>
+              Back to all modules
             </button>
-          </div>
+          </article>
+        ) : selectedModule && !selectedModuleData ? (
+          /* #137 — not-found page for invalid module routes */
+          <article className="module-not-found">
+            <h1 className="sr-only">Module Not Found</h1>
+            <div className="module-empty-icon" aria-hidden="true">
+              !
+            </div>
+            <h2 id="modules-heading">Module not found</h2>
+            <p>
+              The module "{selectedModule}" does not exist in the Soroban Testkit library.
+              Check the module name or browse the available modules below.
+            </p>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => setSelectedModule(null)}
+            >
+              View all modules
+            </button>
+          </article>
+        ) : (
+          <>
+            <header>
+              <p className="eyebrow">One prelude. Seven focused modules.</p>
+              <h2 id="modules-heading">Everything a serious contract test needs.</h2>
+              <div className="module-filter-bar">
+                <label htmlFor="module-search" className="sr-only">
+                  Filter modules
+                </label>
+                <input
+                  id="module-search"
+                  ref={moduleSearchRef}
+                  type="search"
+                  className="module-filter-input"
+                  placeholder="Search modules by name or description… (press /)"
+                  value={moduleFilter}
+                  onChange={(event) => setModuleFilter(event.target.value)}
+                  aria-label="Search modules by name or description"
+                />
+                {moduleFilter && (
+                  <button
+                    type="button"
+                    className="module-filter-clear"
+                    onClick={() => setModuleFilter("")}
+                    aria-label="Clear module search"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="category-filter-bar" role="group" aria-label="Filter modules by category">
+                <button
+                  type="button"
+                  className={`category-chip ${categoryFilter === null ? "active" : ""}`}
+                  onClick={() => setCategoryFilter(null)}
+                  aria-pressed={categoryFilter === null}
+                >
+                  All
+                </button>
+                {moduleCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`category-chip ${categoryFilter === cat ? "active" : ""}`}
+                    onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                    aria-pressed={categoryFilter === cat}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            {filteredModules.length > 0 ? (
+              <div className="module-grid" id="module-grid">
+                {filteredModules.map((mod, index) => (
+                  <article key={mod.name} className="module-card" aria-labelledby={`module-heading-${mod.name}`}>
+                    <button
+                      type="button"
+                      className="module-card-select"
+                      aria-label={`View details for ${mod.name} module`}
+                      onClick={() => setSelectedModule(mod.name)}
+                    >
+                      <span aria-hidden="true">0{index + 1}</span>
+                      <h3 id={`module-heading-${mod.name}`}>{mod.name}</h3>
+                      <p>{mod.description}</p>
+                      <span className="module-category-tag">{mod.category}</span>
+                    </button>
+                    <div className="module-card-links" role="group" aria-label={`Workflows for ${mod.name} module`}>
+                      <h4 className="sr-only">Available workflows</h4>
+                      <a href="#commands" aria-label={`Open the command builder from the ${mod.name} module`}>
+                        Command builder
+                      </a>
+                      {moduleRelatedWorkflows[mod.name].map((workflow) => (
+                        <a
+                          key={workflow}
+                          href="#commands"
+                          aria-label={`Open the ${workflow} workflow related to ${mod.name}`}
+                          onClick={() => setCommand(workflow)}
+                        >
+                          {workflow}
+                        </a>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="module-empty-state" role="status" aria-live="polite" aria-labelledby="module-empty-heading">
+                <div className="module-empty-icon" aria-hidden="true">
+                  ∅
+                </div>
+                <h3 id="module-empty-heading">{moduleFilter ? `No modules match “${moduleFilter}”` : "No modules match your filters"}</h3>
+                <p>
+                  {categoryFilter
+                    ? `No testing modules in the ${categoryFilter} category match this search.`
+                    : "No testing modules match this search."}
+                  {" "}Try adjusting your filters.
+                </p>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={resetModuleFilter}
+                >
+                  Reset filters
+                </button>
+              </div>
+            )}
+          </>
         )}
+      </section>
+
+      {/* Issue #168 — Feature Matrix */}
+      <section className="feature-matrix" aria-labelledby="feature-matrix-heading">
+        <header>
+          <p className="eyebrow">Coverage at a glance</p>
+          <h2 id="feature-matrix-heading">Which modules cover each test concern?</h2>
+          <p>
+            This matrix shows which testing modules address common contract testing needs. Use it to identify
+            the right module for your test scenario.
+          </p>
+        </header>
+        <div className="matrix-table-wrap" role="region" aria-label="Module feature matrix" tabIndex={0}>
+          <table className="feature-matrix-table" aria-label="Test concerns covered by each module">
+            <thead>
+              <tr>
+                <th scope="col">Module</th>
+                {testConcerns.map((concern) => (
+                  <th key={concern} scope="col">{concern}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {modules.map((mod) => (
+                <tr key={mod.name}>
+                  <th scope="row">{mod.name}</th>
+                  {testConcerns.map((concern) => {
+                    const hasFeature = moduleFeatureMatrix[mod.name].includes(concern);
+                    return (
+                      <td key={concern} aria-label={hasFeature ? `${mod.name} supports ${concern}` : `${mod.name} does not support ${concern}`}>
+                        {hasFeature ? <span className="feature-check" aria-hidden="true">✓</span> : <span className="feature-empty" aria-hidden="true">—</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Issue #169 — Glossary */}
+      <section className="glossary" aria-labelledby="glossary-heading">
+        <header>
+          <p className="eyebrow">Learn the vocabulary</p>
+          <h2 id="glossary-heading">Testkit module terminology</h2>
+          <p>
+            Key terms and concepts used across Testkit modules. Each term links to its related testing modules
+            for deeper exploration.
+          </p>
+        </header>
+        <dl className="glossary-list">
+          {glossary.map((item) => (
+            <div key={item.term} className="glossary-item">
+              <dt id={`term-${item.term.toLowerCase().replace(/\s+/g, "-")}`}>{item.term}</dt>
+              <dd>
+                {item.definition}
+                {item.relatedModules && item.relatedModules.length > 0 && (
+                  <span className="glossary-modules">
+                    {" "}Related modules: {item.relatedModules.map((modName, index) => (
+                      <span key={modName}>
+                        <a href="#modules" onClick={() => setSelectedModule(modName)}>{modName}</a>
+                        {index < item.relatedModules!.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className="docs" aria-label="Soroban workflow documentation">
@@ -737,10 +1139,90 @@ export default function App() {
                     {"  "}--ramp recipients
                   </code>
                 </pre>
+                {/* Issue #170 — Valid function and ramp examples */}
+                <div className="parameter-examples" aria-labelledby="parameter-examples-heading">
+                  <h4 id="parameter-examples-heading">Valid function and ramp parameter examples</h4>
+                  <div className="example-grid">
+                    <div className="example-card">
+                      <h5>Function examples</h5>
+                      <ul>
+                        <li><code>batch_payout</code> — Multi-recipient payment distribution</li>
+                        <li><code>transfer</code> — Single token transfer operation</li>
+                        <li><code>execute_equal</code> — Equal distribution to recipients</li>
+                        <li><code>swap</code> — Token exchange operation</li>
+                        <li><code>mint</code> — Token creation function</li>
+                      </ul>
+                      <p className="example-note">Use the exported symbol name from your contract ABI.</p>
+                    </div>
+                    <div className="example-card">
+                      <h5>Ramp parameter examples</h5>
+                      <ul>
+                        <li><code>recipients</code> — Number of payment recipients</li>
+                        <li><code>amount</code> — Transaction amount value</li>
+                        <li><code>iterations</code> — Loop iteration count</li>
+                        <li><code>accounts</code> — Number of accounts involved</li>
+                        <li><code>entries</code> — Storage or data entries</li>
+                      </ul>
+                      <p className="example-note">Must match a parameter name in the function signature.</p>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </div>
         ))}
+      </section>
+
+      {/* Issue #171 — Offline execution boundary documentation */}
+      <section className="offline-boundary" aria-labelledby="offline-boundary-heading">
+        <header>
+          <p className="eyebrow">Zero network dependency</p>
+          <h2 id="offline-boundary-heading">Offline execution boundary</h2>
+          <p>
+            The Soroban Testkit Interface generates commands that run completely offline. No contract bytecode,
+            source files, or test data ever leave your machine.
+          </p>
+        </header>
+        <div className="boundary-grid">
+          <article className="boundary-card">
+            <h3>What stays local</h3>
+            <ul>
+              <li><strong>Contract source code:</strong> Never transmitted remotely during audit scans</li>
+              <li><strong>Compiled WASM:</strong> Probed locally without deployment to test networks</li>
+              <li><strong>Test state:</strong> Deterministic environments run in isolated processes</li>
+              <li><strong>Coverage data:</strong> Generated and stored entirely on your filesystem</li>
+              <li><strong>Configuration:</strong> All command parameters remain in your terminal session</li>
+            </ul>
+          </article>
+          <article className="boundary-card">
+            <h3>Execution guarantees</h3>
+            <dl className="boundary-list">
+              <dt><code>coverage</code></dt>
+              <dd>Runs local test suites through cargo-llvm-cov. Writes HTML/LCOV reports to disk.</dd>
+              
+              <dt><code>limits</code></dt>
+              <dd>Executes WASM in child processes with mocked ledger state. Zero network RPC calls.</dd>
+              
+              <dt><code>audit</code></dt>
+              <dd>Parses Rust AST from local files. Read-only analysis with no external telemetry.</dd>
+            </dl>
+          </article>
+          <article className="boundary-card boundary-note">
+            <h3>Why offline matters</h3>
+            <p>
+              Deterministic testing requires reproducible environments. Network dependencies introduce
+              variability, latency, and state synchronization issues that break test reliability.
+            </p>
+            <p>
+              By keeping execution local, Testkit ensures your contract tests produce identical results
+              regardless of network conditions, third-party service availability, or ledger state changes.
+            </p>
+            <p className="boundary-highlight">
+              <strong>Security benefit:</strong> Proprietary contract logic and business rules remain
+              confidential during development and testing phases.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section className="commands" id="commands" tabIndex={-1}>
@@ -764,6 +1246,26 @@ export default function App() {
           <div className="command-actions">
             <button type="button" className="button secondary" onClick={resetBuilder}>
               Reset builder
+            </button>
+            {/* Issue #141: Reset to defaults for active workflow */}
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={resetToDefaults}
+              aria-label={`Reset ${command} workflow to defaults`}
+            >
+              Reset {command} to defaults
+            </button>
+            {/* Issue #143: Restore previous command */}
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={restorePrevious}
+              disabled={commandHistory.length === 0}
+              aria-label="Restore previous command"
+              title={commandHistory.length === 0 ? "No previous commands" : `Restore previous ${commandHistory[0]?.command || ''} command`}
+            >
+              Restore previous ({commandHistory.length})
             </button>
           </div>
 
@@ -1017,8 +1519,87 @@ export default function App() {
               Active generated command: {generated}
             </div>
             <code data-testid="command-output">{highlightCommand(generated)}</code>
-            <button onClick={copy} aria-label="Copy command">{copied ? "Copied" : "Copy"}</button>
+            <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+            {/* #146 — download action for generated shell script */}
+            <button onClick={downloadCommand} className="button-download" aria-label="Download command as shell script">
+              Download
+            </button>
           </div>
+
+          {/* Issue #144 & #145: Additional copy options */}
+          <div className="copy-options">
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={copyWithComments}
+              aria-label="Copy command with explanatory comments"
+            >
+              {copiedWithComments ? "Copied with comments" : "Copy with comments"}
+            </button>
+            <button 
+              type="button" 
+              className="button secondary" 
+              onClick={copyAsScript}
+              aria-label="Copy as shell script"
+            >
+              {copiedAsScript ? "Script copied" : "Copy as script"}
+            </button>
+          </div>
+
+          {/* #147 — session-only command history */}
+          {commandHistory.length > 0 && (
+            <section className="command-history" aria-labelledby="command-history-heading">
+              <div className="command-history-header">
+                <h3 id="command-history-heading">Command history</h3>
+                <button
+                  type="button"
+                  className="history-toggle"
+                  aria-expanded={historyOpen}
+                  onClick={() => setHistoryOpen(!historyOpen)}
+                >
+                  {historyOpen ? "Hide" : "Show"} ({commandHistory.length})
+                </button>
+              </div>
+              {historyOpen && (
+                <div className="command-history-list" role="log" aria-live="polite">
+                  {commandHistory.slice().reverse().map((entry, index) => {
+                    const cmd = buildCommand(entry);
+                    return (
+                      <div key={index} className="command-history-item">
+                        <span className="history-timestamp">
+                          Entry {commandHistory.length - index}
+                        </span>
+                        <code className="history-command">{cmd}</code>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await copyToClipboard(cmd);
+                            setAnnouncement(`History command ${commandHistory.length - index} copied`);
+                            window.setTimeout(() => setAnnouncement(""), 1600);
+                          }}
+                          aria-label={`Copy history command ${commandHistory.length - index}`}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() => {
+                      setCommandHistory([]);
+                      setHistoryOpen(false);
+                      setAnnouncement("Command history cleared");
+                      window.setTimeout(() => setAnnouncement(""), 1600);
+                    }}
+                  >
+                    Clear history
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="advanced-command-block">
             <button type="button" className="button secondary" onClick={toggleAdvancedEditor}>
@@ -1230,18 +1811,94 @@ export default function App() {
       </section>
 
       <section className="guides" aria-label="Workflow guides">
+        {/* Quick reference section for all three commands */}
+        <article className="quick-reference-card">
+          <div className="quick-reference-header">
+            <h3>Quick Reference — All Commands</h3>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => window.print()}
+              aria-label="Print quick reference"
+            >
+              Print reference
+            </button>
+          </div>
+          <div className="quick-reference-grid">
+            <div className="quick-ref-item">
+              <h4>Coverage</h4>
+              <p className="quick-ref-desc">Generate contract-test coverage through cargo-llvm-cov</p>
+              <pre><code>soroban-testkit coverage [PATH]
+  --format [html|lcov|text]
+  --open</code></pre>
+              <dl className="quick-ref-details">
+                <dt>Default path:</dt>
+                <dd>. (current directory)</dd>
+                <dt>Example:</dt>
+                <dd><code>soroban-testkit coverage ./contracts/token --format html --open</code></dd>
+                <dt>Example with spaces:</dt>
+                <dd><code>soroban-testkit coverage "./my contracts/token" --format html</code></dd>
+              </dl>
+            </div>
+            <div className="quick-ref-item">
+              <h4>Limits</h4>
+              <p className="quick-ref-desc">Ramp a contract input to find its practical resource ceiling</p>
+              <pre><code>soroban-testkit limits
+  --contract [WASM_PATH]
+  --fn [FUNCTION]
+  --ramp [PARAMETER]</code></pre>
+              <dl className="quick-ref-details">
+                <dt>Defaults:</dt>
+                <dd>contract: target/wasm32v1-none/release/contract.wasm<br />fn: batch_payout<br />ramp: recipients</dd>
+                <dt>Example:</dt>
+                <dd><code>soroban-testkit limits --contract ./build/token.wasm --fn transfer --ramp amount</code></dd>
+                <dt>Example with spaces:</dt>
+                <dd><code>soroban-testkit limits --contract "./my build/token.wasm" --fn transfer</code></dd>
+              </dl>
+            </div>
+            <div className="quick-ref-item">
+              <h4>Audit</h4>
+              <p className="quick-ref-desc">Scan contract sources for common auth, arithmetic, and TTL risks</p>
+              <pre><code>soroban-testkit audit [PATH]
+  --strict</code></pre>
+              <dl className="quick-ref-details">
+                <dt>Default path:</dt>
+                <dd>./src</dd>
+                <dt>Example:</dt>
+                <dd><code>soroban-testkit audit ./contracts/escrow/src --strict</code></dd>
+                <dt>Example with spaces:</dt>
+                <dd><code>soroban-testkit audit "./my contracts/src" --strict</code></dd>
+              </dl>
+            </div>
+          </div>
+          <div className="quick-reference-note">
+            <p><strong>Note on paths with spaces:</strong> Always wrap paths containing spaces in double quotes (e.g., <code>"./my contracts"</code>) to ensure proper command parsing.</p>
+          </div>
+        </article>
+
         <article className="guide-card">
           <div className="guide-header">
             <h3>Coverage report guide</h3>
-            <button
-              type="button"
-              className="guide-toggle"
-              aria-expanded={coverageGuideOpen}
-              aria-controls="coverage-guide-panel"
-              onClick={() => setCoverageGuideOpen((open) => !open)}
-            >
-              {coverageGuideOpen ? "Hide guide" : "Show guide"}
-            </button>
+            <div className="guide-header-actions">
+              <button
+                type="button"
+                className="guide-toggle"
+                aria-expanded={coverageGuideOpen}
+                aria-controls="coverage-guide-panel"
+                onClick={() => setCoverageGuideOpen((open) => !open)}
+              >
+                {coverageGuideOpen ? "Hide guide" : "Show guide"}
+              </button>
+              <a 
+                href="https://github.com/soroban-testkit/testkit-interface/issues/new?title=Coverage%20guide%20feedback&labels=documentation" 
+                className="guide-feedback-link"
+                aria-label="Provide feedback on Coverage guide"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Feedback
+              </a>
+            </div>
           </div>
           {coverageGuideOpen && (
             <div id="coverage-guide-panel" className="guide-panel">
@@ -1265,15 +1922,26 @@ export default function App() {
         <article className="guide-card">
           <div className="guide-header">
             <h3>Audit workflow tutorial</h3>
-            <button
-              type="button"
-              className="guide-toggle"
-              aria-expanded={auditGuideOpen}
-              aria-controls="audit-guide-panel"
-              onClick={() => setAuditGuideOpen((open) => !open)}
-            >
-              {auditGuideOpen ? "Hide tutorial" : "Show tutorial"}
-            </button>
+            <div className="guide-header-actions">
+              <button
+                type="button"
+                className="guide-toggle"
+                aria-expanded={auditGuideOpen}
+                aria-controls="audit-guide-panel"
+                onClick={() => setAuditGuideOpen((open) => !open)}
+              >
+                {auditGuideOpen ? "Hide tutorial" : "Show tutorial"}
+              </button>
+              <a 
+                href="https://github.com/soroban-testkit/testkit-interface/issues/new?title=Audit%20guide%20feedback&labels=documentation" 
+                className="guide-feedback-link"
+                aria-label="Provide feedback on Audit guide"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Feedback
+              </a>
+            </div>
           </div>
           {auditGuideOpen && (
             <div id="audit-guide-panel" className="guide-panel">
@@ -1310,15 +1978,529 @@ export default function App() {
             </div>
           )}
         </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>Guide: Resolving audit warnings</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={auditWarningsGuideOpen}
+              aria-controls="audit-warnings-guide-panel"
+              onClick={() => setAuditWarningsGuideOpen((open) => !open)}
+            >
+              {auditWarningsGuideOpen ? "Hide guide" : "Show guide"}
+            </button>
+          </div>
+          {auditWarningsGuideOpen && (
+            <div id="audit-warnings-guide-panel" className="guide-panel">
+              <p>
+                Common audit warnings fall into three categories: authentication, arithmetic safety, and TTL management.
+                Each category has specific resolution patterns.
+              </p>
+              <h4>Authentication warnings</h4>
+              <ul>
+                <li><strong>Missing require_auth:</strong> Add explicit authorization checks before state-changing operations. Use <code>address.require_auth()</code> to verify caller identity.</li>
+                <li><strong>Unchecked caller privilege:</strong> Validate that the authenticated caller has permission for the requested action using role checks or ownership verification.</li>
+                <li><strong>Authorization bypass:</strong> Ensure all entry points that modify contract state include proper authentication gates before execution.</li>
+              </ul>
+              <h4>Arithmetic safety warnings</h4>
+              <ul>
+                <li><strong>Potential overflow:</strong> Use checked arithmetic operations or validate input ranges. Replace <code>a + b</code> with <code>a.checked_add(b)</code> for critical calculations.</li>
+                <li><strong>Division by zero:</strong> Add explicit zero checks before division operations. Return early or panic with clear error messages.</li>
+                <li><strong>Underflow risk:</strong> Validate that subtraction operands maintain proper ordering. Use <code>checked_sub</code> for balance calculations.</li>
+              </ul>
+              <h4>TTL and storage warnings</h4>
+              <ul>
+                <li><strong>Missing TTL extension:</strong> Call <code>env.storage().instance().extend_ttl()</code> before reading persistent data to prevent expiry-related failures.</li>
+                <li><strong>Unbounded storage growth:</strong> Implement cleanup logic or periodic archival for collections that grow indefinitely. Consider pagination for large datasets.</li>
+                <li><strong>Persistent key without extension:</strong> Always extend TTL when reading critical state. Treat persistent storage as requiring active maintenance.</li>
+              </ul>
+              <p className="guide-note">
+                After addressing warnings, re-run the audit with <code>--strict</code> to confirm all issues are resolved. Add regression tests for each fixed warning.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>Guide: Interpreting resource limit results</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={limitsInterpretationGuideOpen}
+              aria-controls="limits-interpretation-guide-panel"
+              onClick={() => setLimitsInterpretationGuideOpen((open) => !open)}
+            >
+              {limitsInterpretationGuideOpen ? "Hide guide" : "Show guide"}
+            </button>
+          </div>
+          {limitsInterpretationGuideOpen && (
+            <div id="limits-interpretation-guide-panel" className="guide-panel">
+              <p>
+                The <code>soroban-testkit limits</code> command ramps a contract input parameter until execution hits resource boundaries. Understanding the output helps you design scalable contracts.
+              </p>
+              <h4>Reading the results</h4>
+              <ul>
+                <li><strong>Last successful count:</strong> The highest parameter value that completed without exceeding limits. This represents your practical ceiling for production.</li>
+                <li><strong>Instruction count:</strong> Total WASM instructions executed. Stellar contracts have a per-invocation instruction budget; staying well below prevents timeout failures.</li>
+                <li><strong>Memory usage:</strong> Peak memory allocated during execution. High memory usage may indicate inefficient data structures or unnecessary copying.</li>
+                <li><strong>Failed ramp value:</strong> The first parameter value that exceeded limits. This boundary helps you understand where optimization becomes critical.</li>
+              </ul>
+              <h4>Common patterns and what they mean</h4>
+              <dl className="guide-definitions">
+                <dt>Linear scaling with flat memory</dt>
+                <dd>Indicates efficient iteration without extra allocations. This is ideal for batch operations like token transfers.</dd>
+                
+                <dt>Exponential instruction growth</dt>
+                <dd>Suggests nested loops or recursive patterns. Consider flattening algorithms or batching work across multiple transactions.</dd>
+                
+                <dt>Sharp memory increase at boundary</dt>
+                <dd>Points to collection pre-allocation hitting capacity thresholds. Review vector sizing and consider streaming patterns.</dd>
+                
+                <dt>Early instruction ceiling with low memory</dt>
+                <dd>Indicates computation-heavy logic. Look for redundant calculations, expensive cryptographic operations, or unoptimized sorting.</dd>
+                
+                <dt>Memory ceiling before instruction limit</dt>
+                <dd>Signals data structure overhead. Consider using maps instead of vectors for lookups, or splitting large structures across storage keys.</dd>
+              </dl>
+              <h4>Optimization strategies</h4>
+              <ul>
+                <li><strong>Batch size tuning:</strong> Use limits results to set safe default batch sizes in your contract API. Document maximum supported values.</li>
+                <li><strong>Pagination:</strong> If limits are too restrictive, split operations across multiple contract calls with cursor-based continuation.</li>
+                <li><strong>Data structure choice:</strong> High memory usage suggests switching from vectors to iterators, or using compact representations.</li>
+                <li><strong>Algorithm complexity:</strong> Exponential growth indicates the need for more efficient algorithms. Profile and refactor hot paths.</li>
+              </ul>
+              <p className="guide-note">
+                Run limits tests after each optimization to quantify improvements. Track metrics over time to detect performance regressions.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>FAQ: Common CLI installation errors</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={installFaqOpen}
+              aria-controls="install-faq-panel"
+              onClick={() => setInstallFaqOpen((open) => !open)}
+            >
+              {installFaqOpen ? "Hide FAQ" : "Show FAQ"}
+            </button>
+          </div>
+          {installFaqOpen && (
+            <div id="install-faq-panel" className="guide-panel">
+              <h4>cargo install fails with "failed to compile"</h4>
+              <p><strong>Cause:</strong> Outdated Rust toolchain or missing system dependencies.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Update Rust to the latest stable version: <code>rustup update stable</code></li>
+                <li>Ensure you have build essentials: <code>sudo apt install build-essential</code> (Linux) or install Xcode Command Line Tools (macOS)</li>
+                <li>Try installing with <code>--locked</code> flag: <code>cargo install soroban-testkit-cli --locked</code></li>
+              </ol>
+
+              <h4>wasm32v1-none target not found</h4>
+              <p><strong>Cause:</strong> The WebAssembly compilation target isn't installed for your Rust toolchain.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Add the target explicitly: <code>rustup target add wasm32v1-none</code></li>
+                <li>Verify installation: <code>rustup target list | grep wasm32v1</code></li>
+                <li>If the target doesn't exist, update Rust: <code>rustup update</code> (requires Rust 1.84+)</li>
+              </ol>
+
+              <h4>soroban-testkit: command not found</h4>
+              <p><strong>Cause:</strong> Cargo's bin directory isn't in your shell PATH.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Add Cargo bin to PATH. For bash/zsh, add to <code>~/.bashrc</code> or <code>~/.zshrc</code>: <code>export PATH="$HOME/.cargo/bin:$PATH"</code></li>
+                <li>Reload your shell: <code>source ~/.bashrc</code> or open a new terminal</li>
+                <li>Verify: <code>which soroban-testkit</code> should show the binary path</li>
+              </ol>
+
+              <h4>cargo-llvm-cov: not found when running coverage</h4>
+              <p><strong>Cause:</strong> The LLVM coverage tool isn't installed.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Install the tool: <code>cargo install cargo-llvm-cov</code></li>
+                <li>Verify: <code>cargo llvm-cov --version</code></li>
+                <li>If you only need limits or audit, you can skip this installation</li>
+              </ol>
+
+              <h4>Permission denied errors during installation</h4>
+              <p><strong>Cause:</strong> Insufficient permissions for the cargo install directory.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Never use <code>sudo</code> with cargo install. This breaks Rust's user-local installation model.</li>
+                <li>Ensure <code>~/.cargo</code> is owned by your user: <code>ls -la ~/.cargo</code></li>
+                <li>If ownership is wrong, reclaim it: <code>sudo chown -R $USER:$USER ~/.cargo</code></li>
+              </ol>
+
+              <h4>OpenSSL or pkg-config errors on Linux</h4>
+              <p><strong>Cause:</strong> Missing system libraries required for compiling dependencies.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Ubuntu/Debian: <code>sudo apt install pkg-config libssl-dev</code></li>
+                <li>Fedora/RHEL: <code>sudo dnf install pkg-config openssl-devel</code></li>
+                <li>Arch: <code>sudo pacman -S pkg-config openssl</code></li>
+              </ol>
+
+              <h4>stellar-cli installation fails</h4>
+              <p><strong>Cause:</strong> Network issues or crates.io being temporarily unavailable.</p>
+              <p><strong>Solution:</strong></p>
+              <ol>
+                <li>Retry with verbose output: <code>cargo install stellar-cli -v</code></li>
+                <li>Check network connectivity and proxy settings</li>
+                <li>Try an alternative mirror if available in your region</li>
+                <li>Install a specific version: <code>cargo install stellar-cli --version 22.0.0</code></li>
+              </ol>
+
+              <p className="guide-note">
+                Still stuck? Check the <a href={INSTALL_GUIDE_URL}>full installation guide</a> or open an issue on the <a href={CORE_REPO_URL}>core repository</a>.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="guide-card">
+          <div className="guide-header">
+            <h3>Examples: Projects with multiple contracts</h3>
+            <button
+              type="button"
+              className="guide-toggle"
+              aria-expanded={multiContractExamplesOpen}
+              aria-controls="multi-contract-examples-panel"
+              onClick={() => setMultiContractExamplesOpen((open) => !open)}
+            >
+              {multiContractExamplesOpen ? "Hide examples" : "Show examples"}
+            </button>
+          </div>
+          {multiContractExamplesOpen && (
+            <div id="multi-contract-examples-panel" className="guide-panel">
+              <p>
+                Soroban projects often contain multiple contracts in a Cargo workspace. Each workflow supports this pattern with specific conventions.
+              </p>
+              
+              <h4>Workspace structure</h4>
+              <pre role="region" aria-label="Example multi-contract workspace structure" tabIndex={0}>
+                <code>{`project-root/
+├── Cargo.toml          # Workspace manifest
+├── contracts/
+│   ├── token/
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   ├── escrow/
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   └── auction/
+│       ├── Cargo.toml
+│       └── src/lib.rs
+└── tests/
+    └── integration_tests.rs`}</code>
+              </pre>
+
+              <h4>Coverage: Test all contracts together</h4>
+              <p>Run coverage from the workspace root to include all contract crates:</p>
+              <pre role="region" aria-label="Multi-contract coverage command" tabIndex={0}>
+                <code>soroban-testkit coverage . --format html --open</code>
+              </pre>
+              <p>
+                The workspace-aware coverage report aggregates results across all members. Each contract's test coverage appears in the unified HTML output.
+              </p>
+
+              <h4>Coverage: Single contract in workspace</h4>
+              <p>Target a specific contract by providing its subdirectory:</p>
+              <pre role="region" aria-label="Single contract coverage command" tabIndex={0}>
+                <code>soroban-testkit coverage contracts/escrow --format html</code>
+              </pre>
+              <p>This isolates coverage to just the escrow contract and its tests, ignoring sibling contracts.</p>
+
+              <h4>Audit: Workspace-wide scan</h4>
+              <p>Audit all contract sources from the workspace root:</p>
+              <pre role="region" aria-label="Workspace audit command" tabIndex={0}>
+                <code>soroban-testkit audit contracts --strict</code>
+              </pre>
+              <p>The scanner recursively processes all <code>.rs</code> files under <code>contracts/</code>, reporting findings across every contract.</p>
+
+              <h4>Audit: Per-contract scanning</h4>
+              <p>Focus the audit on a single contract's source directory:</p>
+              <pre role="region" aria-label="Single contract audit command" tabIndex={0}>
+                <code>soroban-testkit audit contracts/token/src</code>
+              </pre>
+              <p>This scans only the token contract, useful for incremental security reviews.</p>
+
+              <h4>Limits: Testing each contract separately</h4>
+              <p>Each contract compiles to its own WASM artifact. Test limits for the auction contract:</p>
+              <pre role="region" aria-label="Limits command for auction contract" tabIndex={0}>
+                <code>{`soroban-testkit limits \\
+  --contract target/wasm32v1-none/release/auction.wasm \\
+  --fn place_bid \\
+  --ramp bidders`}</code>
+              </pre>
+              <p>Repeat for each contract, adjusting the <code>--contract</code> path, <code>--fn</code>, and <code>--ramp</code> parameters.</p>
+
+              <h4>Limits: Batch testing script</h4>
+              <p>Automate limits testing across multiple contracts with a shell script:</p>
+              <pre role="region" aria-label="Batch limits testing script" tabIndex={0}>
+                <code>{`#!/bin/bash
+for contract in token escrow auction; do
+  echo "Testing $contract..."
+  soroban-testkit limits \\
+    --contract target/wasm32v1-none/release/$contract.wasm \\
+    --fn execute \\
+    --ramp items
+done`}</code>
+              </pre>
+
+              <h4>Build optimization for workspaces</h4>
+              <p>When working with multiple contracts, build them all at once to share dependencies:</p>
+              <pre role="region" aria-label="Workspace build command" tabIndex={0}>
+                <code>{`cargo build --release --target wasm32v1-none --workspace`}</code>
+              </pre>
+              <p>
+                This ensures all contracts are up-to-date before running limits tests or deploying.
+              </p>
+
+              <h4>Cargo.toml workspace configuration</h4>
+              <p>Define workspace members in the root <code>Cargo.toml</code>:</p>
+              <pre role="region" aria-label="Workspace Cargo.toml example" tabIndex={0}>
+                <code>{`[workspace]
+members = [
+  "contracts/token",
+  "contracts/escrow",
+  "contracts/auction",
+]
+resolver = "2"
+
+[workspace.dependencies]
+soroban-sdk = "27.0.0"
+soroban-testkit = "0.2.0"`}</code>
+              </pre>
+              <p>
+                Individual contract <code>Cargo.toml</code> files inherit shared dependencies using <code>workspace = true</code>.
+              </p>
+
+              <p className="guide-note">
+                All three workflows (coverage, audit, limits) respect Cargo workspace conventions. Point the CLI at the workspace root for aggregate analysis or at specific subdirectories for focused testing.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <section
+          className="command-reference"
+          id="limits-reference"
+          tabIndex={-1}
+          aria-labelledby="limits-reference-heading"
+        >
+          <div className="reference-header">
+            <p className="eyebrow">Command reference</p>
+            <div className="reference-title-row">
+              <h2 id="limits-reference-heading">Resource limits, at a glance.</h2>
+              <a 
+                href="https://github.com/soroban-testkit/testkit-interface/issues/new?title=Limits%20reference%20feedback&labels=documentation" 
+                className="guide-feedback-link"
+                aria-label="Provide feedback on Limits reference"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Feedback
+              </a>
+            </div>
+            <p>
+              Use <code>soroban-testkit limits</code> to ramp one contract input until the local WASM
+              execution reaches its practical resource ceiling. The command is read-only and runs offline.
+            </p>
+          </div>
+          <div className="reference-grid">
+            <article className="reference-card">
+              <h3>Command shape</h3>
+              <pre aria-label="Resource limits command example"><code>{"soroban-testkit limits \\\n  --contract target/wasm32v1-none/release/contract.wasm \\\n  --fn batch_payout \\\n  --ramp recipients"}</code></pre>
+              <p>Use the compiled WASM path and exported function and input names from your contract.</p>
+            </article>
+            <article className="reference-card">
+              <h3>Arguments</h3>
+              <dl className="reference-arguments">
+                <div><dt><code>--contract</code></dt><dd>Compiled WASM artifact. Defaults to <code>{localFileGuides.limits.defaultPath}</code>.</dd></div>
+                <div><dt><code>--fn</code></dt><dd>Exported function to probe. Defaults to <code>batch_payout</code>.</dd></div>
+                <div><dt><code>--ramp</code></dt><dd>Input parameter to increase. Defaults to <code>recipients</code>.</dd></div>
+              </dl>
+            </article>
+            <article className="reference-card">
+              <h3>Before you run it</h3>
+              <ol>
+                <li>Build the contract for <code>wasm32v1-none</code> in release mode.</li>
+                <li>Confirm the function is exported and the ramp input is accepted.</li>
+                <li>Read the instruction and memory ceilings printed to stdout.</li>
+              </ol>
+              <p className="reference-note">Reads: local WASM and export metadata. Writes: none.</p>
+            </article>
+          </div>
+          <article className="reference-card reference-example" aria-labelledby="limits-example-heading">
+            <h3 id="limits-example-heading">Run a complete example</h3>
+            <p>
+              This uses the public Sororail batch-payout contract, whose <code>execute_equal</code> entry point
+              ramps the <code>recipients</code> input. Install Rust 1.91 or later and
+              {" "}<a href={INSTALL_GUIDE_URL}>install soroban-testkit</a> before starting.
+            </p>
+            <ol className="reference-example-steps">
+              <li>
+                <h4>Get the contract workspace</h4>
+                <pre role="region" aria-label="Clone the Sororail contract workspace" tabIndex={0}>
+                  <code>{"git clone https://github.com/Sororail/sororail-contracts.git\ncd sororail-contracts"}</code>
+                </pre>
+              </li>
+              <li>
+                <h4>Add the WASM target</h4>
+                <pre role="region" aria-label="Add the wasm32v1-none target" tabIndex={0}>
+                  <code>rustup target add wasm32v1-none</code>
+                </pre>
+              </li>
+              <li>
+                <h4>Build the batch-payout contract</h4>
+                <pre role="region" aria-label="Build the batch-payout contract" tabIndex={0}>
+                  <code>
+                    cargo build --release --target wasm32v1-none --manifest-path contracts/batch_payout/Cargo.toml
+                  </code>
+                </pre>
+              </li>
+              <li>
+                <h4>Run the limits workflow from the workspace root</h4>
+                <pre role="region" aria-label="Run the limits example" tabIndex={0}>
+                  <code>
+                    {"soroban-testkit limits \\\n  --contract target/wasm32v1-none/release/sororail_batch_payout.wasm \\\n  --fn execute_equal \\\n  --ramp recipients"}
+                  </code>
+                </pre>
+              </li>
+            </ol>
+            <p className="reference-note">
+              The result reports the last successful recipient count along with instruction and memory usage;
+              measured limits can vary with the contract build and runtime.
+            </p>
+          </article>
+        </section>
       </section>
 
       <footer>
         <span>Built for the Stellar developer ecosystem.</span>
         <span className="footer-links">
           <a href={CORE_REPO_URL}>Soroban Testkit core repository</a>
+          {/* #119 — changelog link */}
+          <a href={`${CORE_REPO_URL}/releases`}>Changelog</a>
+          {/* #174 — release notes link */}
+          <button type="button" className="footer-a11y-link" onClick={() => setReleaseNotesOpen(true)}>
+            Release notes
+          </button>
+          {/* #116 — accessibility statement */}
+          <button type="button" className="footer-a11y-link" onClick={() => setA11yOpen(true)}>
+            Accessibility statement
+          </button>
         </span>
         <span>Apache-2.0</span>
       </footer>
+
+      {/* #174 — release notes dialog */}
+      {releaseNotesOpen && (
+        <div className="a11y-overlay" role="dialog" aria-modal="true" aria-labelledby="release-notes-title" onClick={() => setReleaseNotesOpen(false)}>
+          <div className="a11y-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 id="release-notes-title">Interface Release Notes</h2>
+            <p>
+              This interface evolves alongside the Soroban Testkit CLI. Interface-visible changes track CLI
+              capabilities, new workflow guides, and accessibility enhancements.
+            </p>
+            
+            <div className="release-notes-list">
+              <article className="release-note-item">
+                <h3>v0.4.0 — October 2026</h3>
+                <ul>
+                  <li><strong>Quick reference:</strong> Added printable command reference for coverage, limits, and audit workflows with examples including paths with spaces.</li>
+                  <li><strong>Documentation feedback:</strong> Added feedback links beside each workflow guide for direct issue reporting.</li>
+                  <li><strong>Path examples:</strong> Added comprehensive examples for handling contract paths containing spaces across all commands.</li>
+                  <li><strong>Release notes:</strong> Added this interface-visible CLI changes section.</li>
+                </ul>
+              </article>
+
+              <article className="release-note-item">
+                <h3>v0.3.0 — September 2026</h3>
+                <ul>
+                  <li><strong>Limits workflow:</strong> Added complete standalone reference with default arguments and offline behavior explanation.</li>
+                  <li><strong>Audit prerequisites:</strong> Expandable preflight checklist helps users prepare source audit scans.</li>
+                  <li><strong>Advanced editor:</strong> Multiline command editor supports complex argument combinations.</li>
+                </ul>
+              </article>
+
+              <article className="release-note-item">
+                <h3>v0.2.0 — August 2026</h3>
+                <ul>
+                  <li><strong>Configuration comparison:</strong> Side-by-side comparison panel for different workflow settings.</li>
+                  <li><strong>Required vs Optional:</strong> Visual badges distinguish mandatory parameters from optional flags.</li>
+                  <li><strong>Effective defaults:</strong> Preview panel shows which empty fields fall back to default values.</li>
+                </ul>
+              </article>
+
+              <article className="release-note-item">
+                <h3>v0.1.0 — July 2026</h3>
+                <ul>
+                  <li><strong>Initial release:</strong> Command builder for coverage, limits, and audit workflows.</li>
+                  <li><strong>Module documentation:</strong> Seven focused testing modules with category filtering.</li>
+                  <li><strong>Installation guide:</strong> Step-by-step setup from clean machine to first command.</li>
+                  <li><strong>Accessibility:</strong> Keyboard navigation, screen reader support, and WCAG 2.1 AA compliance.</li>
+                </ul>
+              </article>
+            </div>
+
+            <p className="release-notes-footer">
+              For complete CLI changelog including internal implementation details, see the{" "}
+              <a href={`${CORE_REPO_URL}/releases`}>core repository releases</a>.
+            </p>
+            <button type="button" className="button primary" onClick={() => setReleaseNotesOpen(false)} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* #116 — accessibility statement dialog */}
+      {a11yOpen && (
+        <div className="a11y-overlay" role="dialog" aria-modal="true" aria-labelledby="a11y-title" onClick={() => setA11yOpen(false)}>
+          <div className="a11y-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 id="a11y-title">Accessibility Statement</h2>
+            <p>
+              The Soroban Testkit Interface is committed to WCAG 2.1 AA compliance. We aim to make every
+              feature keyboard-accessible, screen-reader friendly, and usable across devices.
+            </p>
+            <ul>
+              <li>All interactive controls are reachable via keyboard (Tab, Enter, Space, Escape).</li>
+              <li>ARIA labels and live regions announce dynamic state changes.</li>
+              <li>Color contrast meets or exceeds 4.5:1 for body text.</li>
+              <li>Responsive layout supports mobile and desktop viewports.</li>
+            </ul>
+            <p>
+              Found an accessibility issue? Open an issue on{" "}
+              <a href={INTERFACE_REPO_URL}>GitHub</a> or contact{" "}
+              <a href="mailto:accessibility@soroban-testkit.dev">accessibility@soroban-testkit.dev</a>.
+            </p>
+            <button type="button" className="button primary" onClick={() => setA11yOpen(false)} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Back-to-top control (#125) */}
+      <button
+        type="button"
+        className={`back-to-top ${showBackToTop ? "visible" : ""}`}
+        onClick={scrollToTop}
+        aria-label="Back to top"
+        tabIndex={showBackToTop ? 0 : -1}
+        aria-hidden={!showBackToTop}
+      >
+        ↑ Top
+      </button>
     </main>
   );
 }
