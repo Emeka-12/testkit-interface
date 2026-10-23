@@ -85,7 +85,20 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 78px; }
 body { margin: 0; min-width: 320px; background: radial-gradient(circle at 75% 8%, var(--color-canvas-gradient) 0, transparent 28rem), var(--color-canvas); }
-a { color: inherit; text-decoration: none; }
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color .15s ease, text-decoration .15s ease, transform .15s ease;
+}
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+a:active {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
 button, input, select { font: inherit; }
 main { max-width: 1440px; margin: auto; overflow: hidden; }
 
@@ -129,8 +142,28 @@ nav {
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-decoration: none;
 }
-.nav-links a:hover { color: var(--color-accent); }
+.nav-links a:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1.5px;
+}
+.nav-links a:active {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2.5px;
+}
+.nav-links a[aria-current="location"],
+.nav-links a[aria-current="page"] {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+  font-weight: 600;
+}
 
 /* Hero Section */
 .hero { min-height: 680px; padding: var(--space-section) var(--page-padding) 80px; display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 7vw; }
@@ -138,7 +171,24 @@ nav {
 h1 { margin: var(--space-xl) 0 var(--space-3xl); font-size: clamp(3.4rem, 6.5vw, 7rem); line-height: .96; letter-spacing: -.065em; }
 .lede { max-width: 650px; color: var(--color-text-secondary); font-size: 1.15rem; line-height: 1.75; }
 .actions { display: flex; gap: var(--space-md); margin-top: 38px; }
-.button { padding: 13px 19px; border-radius: var(--radius-base); font-weight: 600; font-size: .9rem; cursor: pointer; }
+.button {
+  padding: 13px 19px;
+  border-radius: var(--radius-base);
+  font-weight: 600;
+  font-size: .9rem;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.button:hover, a.button:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.button:active, a.button:active {
+  text-decoration: none;
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
 .primary { color: var(--color-accent-text-dark); background: var(--color-accent); border: 0; }
 .secondary { border: 1px solid var(--color-border-strong); background: transparent; color: var(--color-text-primary); }
 
@@ -198,7 +248,23 @@ h2 { margin: var(--space-md) 0; font-size: clamp(2rem, 4vw, 4rem); letter-spacin
 .module-card-select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
 .module-card-links, .category-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-md); }
 .module-card-links { margin-top: var(--space-xl); }
-.module-card-links a { color: var(--color-accent); font-size: .75rem; }
+.module-card-links a {
+  display: inline-flex;
+  align-items: center;
+  font: 500 .75rem var(--font-mono);
+  color: var(--color-accent);
+  padding: 2px 0;
+  text-decoration: none;
+}
+.module-card-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.module-card-links a:active {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}
 .category-filter-bar { margin: var(--space-xl) 0; }
 .category-chip { padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-border-default); border-radius: var(--radius-round); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
 .category-chip.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
@@ -266,6 +332,54 @@ h2 { margin: var(--space-md) 0; font-size: clamp(2rem, 4vw, 4rem); letter-spacin
 .command-tabs button.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
 .description { min-height: 48px; }
 .builder { padding: var(--space-5xl); background: var(--color-canvas); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
+
+/* Command Summary Card */
+.summary-card {
+  margin-top: var(--space-3xl);
+  padding: var(--space-xl);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+.summary-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.summary-workflow {
+  font: 700 1rem var(--font-mono);
+  color: var(--color-accent);
+  margin: var(--space-xs) 0 var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.summary-settings {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0 0 var(--space-md);
+  padding: 0;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .82rem;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.summary-row dt {
+  color: var(--color-text-secondary);
+}
+.summary-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+}
+.summary-note {
+  margin: 0;
+  font-size: .75rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
 
 /* Field & Required/Optional distinction */
 label { display: grid; gap: 9px; margin-bottom: var(--space-2xl); color: var(--color-text-label); font-size: .78rem; }
@@ -445,6 +559,136 @@ footer { display: flex; justify-content: space-between; padding: 34px var(--page
 @media (prefers-reduced-motion: reduce) {
   input, select {
     transition: none;
+  }
+}
+
+/* High-contrast and forced-colors mode support without losing control boundaries (#107) */
+@media (forced-colors: active) {
+  /* Control boundaries for interactive buttons */
+  .button,
+  button,
+  .primary,
+  .secondary {
+    border: 2px solid ButtonBorder !important;
+    outline: 1px solid transparent;
+  }
+
+  .primary {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  .button:hover,
+  button:hover {
+    border-color: Highlight !important;
+  }
+
+  .button:focus-visible,
+  button:focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Form inputs and controls preserve explicit field borders */
+  input,
+  select,
+  textarea,
+  .module-filter-input {
+    border: 2px solid FieldBorder !important;
+    color: FieldText !important;
+    background: Field !important;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus,
+  .module-filter-input:focus {
+    border-color: Highlight !important;
+    outline: 2px solid Highlight !important;
+    outline-offset: 1px !important;
+  }
+
+  /* Cards, articles, and regions maintain distinct visible borders */
+  .module-grid article,
+  .summary-card,
+  .builder,
+  .terminal,
+  .guide-card,
+  .install-guide,
+  .install-step,
+  .comparison {
+    border: 1px solid CanvasText !important;
+  }
+
+  /* Command tabs / workflow buttons */
+  .command-tabs button {
+    border: 1px solid ButtonBorder !important;
+  }
+
+  .command-tabs button.active,
+  .command-tabs button[aria-pressed="true"] {
+    border: 2px solid Highlight !important;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+
+  /* Badges */
+  .badge,
+  .badge-required,
+  .badge-optional {
+    border: 1px solid CanvasText !important;
+  }
+
+  /* Checkboxes */
+  .check input[type="checkbox"] {
+    outline: 1px solid CanvasText !important;
+  }
+
+  /* Links */
+  a:hover,
+  a:active {
+    text-decoration: underline !important;
+    text-decoration-color: Highlight !important;
+  }
+
+  .nav-links a[aria-current="location"],
+  .nav-links a[aria-current="page"] {
+    border-bottom: 2px solid Highlight !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-border-subtle: #ffffff33;
+    --color-border-default: #ffffff44;
+    --color-border-strong: #ffffff66;
+    --color-border-input: #ffffff55;
+    --color-border-tab: #ffffff55;
+    --color-text-secondary: #c2d6ce;
+    --color-text-muted: #8ea39b;
+  }
+
+  .button,
+  button {
+    border-width: 2px;
+  }
+
+  input,
+  select,
+  textarea {
+    border-width: 2px;
+  }
+
+  .module-grid article {
+    border-width: 1px;
+    border-color: var(--color-border-strong);
+  }
+
+  a:hover,
+  a:active {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
   }
 }
 

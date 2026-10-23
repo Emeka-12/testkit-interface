@@ -1,7 +1,8 @@
 # Accessibility review
 
-This review covers keyboard-only use, screen reader structure, and 200% zoom
-(Stellar Wave issues #108, #109, #110, #111). It records what was verified
+This review covers keyboard-only use, screen reader structure, 200% zoom,
+link cues, heading hierarchy, command summaries, and high contrast mode
+(Stellar Wave issues #104, #105, #106, #107, #108, #109, #110, #111). It records what was verified
 automatically, what was fixed, and what still needs a manual pass.
 
 ## What is verified automatically
@@ -11,11 +12,15 @@ automatically, what was fixed, and what still needs a manual pass.
 | Keyboard | Skip link is first in tab order and moves focus to the page content | `tests/visual/accessibility.spec.ts` |
 | Keyboard | Every focusable control shows an outline on keyboard focus | `tests/visual/accessibility.spec.ts` |
 | Keyboard | Workflow tabs respond to arrow, Home and End keys | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
+| Non-color cues | Links have underline, offset, and cues on hover/active states beyond color (#104) | `src/styles.css`, `src/App.test.tsx` |
+| Screen reader | Module cards follow logical heading hierarchy h2 -> h3 -> h4 with labelled regions (#105) | `src/App.test.tsx` |
+| Screen reader | Active command and option settings are summarized in an accessible live region (#106) | `src/App.test.tsx` |
 | Keyboard | Each command in the limits example is reachable in order with Tab | `tests/visual/accessibility.spec.ts` |
 | Screen reader | Landmarks, a single `h1`, and named navigation links | `tests/visual/accessibility.spec.ts` |
 | Screen reader | Command selector is a labelled group of toggle buttons | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
 | Screen reader | Copy results are announced through a polite live region | `src/App.test.tsx`, `tests/visual/accessibility.spec.ts` |
 | Screen reader | Audit prerequisites are a labelled fieldset of checkboxes, each with its own accessible name | `src/App.test.tsx` |
+| High contrast | Controls, buttons, tabs, inputs, and cards retain boundaries in high-contrast/forced-colors modes (#107) | `src/styles.css`, `src/App.test.tsx` |
 | Zoom | No horizontal page scroll and no clipped controls at 640px and 320px CSS widths | `tests/visual/accessibility.spec.ts` |
 
 These checks read the accessibility tree and computed styles. They do not
@@ -52,3 +57,7 @@ browser and screen reader pair per platform.
 | 8 | The limits workflow needed a discoverable, ready-to-run command reference. | Fixed: added a focusable reference section and a build-and-run example with keyboard-focusable command steps. | `src/App.tsx`, `src/styles.css`, `tests/visual/accessibility.spec.ts` |
 | 9 | Scrollable `pre` blocks are not keyboard-focusable in every browser, so long lines may be unreachable by keyboard on some browsers. | Open. | `src/styles.css` |
 | 10 | The stored visual baselines in `tests/visual/__screenshots__` predate the current layout and do not match a fresh render. | Open. Baselines should be regenerated on the CI platform, not locally. | `tests/visual/` |
+| 11 | Hover and active link and button states relied solely on color changes (#104). | Fixed: added underlines, offsets, and elevation cues. | `src/styles.css` |
+| 12 | Module cards lacked structured heading levels for cards and their workflow groups (#105). | Fixed: established h2 -> h3 -> h4 hierarchy and region grouping. | `src/App.tsx` |
+| 13 | Active command parameters lacked a screen-reader accessible summary (#106). | Fixed: added polite live region and focusable summary card. | `src/App.tsx` |
+| 14 | Interactive controls and cards lost clear boundaries in high-contrast/forced-colors modes (#107). | Fixed: added forced-colors and prefers-contrast: more styling. | `src/styles.css` |

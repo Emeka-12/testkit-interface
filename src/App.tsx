@@ -818,7 +818,7 @@ export default function App() {
         </aside>
       </section>
 
-      <section className="modules" id="modules" tabIndex={-1}>
+      <section className="modules" id="modules" aria-labelledby="modules-heading" tabIndex={-1}>
         {selectedModuleData ? (
           <article className="module-detail">
             {/* #136 — visible page title for deep-linked views */}
@@ -830,7 +830,7 @@ export default function App() {
               <span aria-current="page">{selectedModuleData.name}</span>
             </nav>
             <p className="eyebrow">{selectedModuleData.category}</p>
-            <h2>{selectedModuleData.name}</h2>
+            <h2 id="modules-heading">{selectedModuleData.name}</h2>
             <p>{selectedModuleData.description}</p>
             <button type="button" className="button secondary" onClick={() => setSelectedModule(null)}>
               Back to all modules
@@ -843,7 +843,7 @@ export default function App() {
             <div className="module-empty-icon" aria-hidden="true">
               !
             </div>
-            <h2>Module not found</h2>
+            <h2 id="modules-heading">Module not found</h2>
             <p>
               The module "{selectedModule}" does not exist in the Soroban Testkit library.
               Check the module name or browse the available modules below.
@@ -860,7 +860,7 @@ export default function App() {
           <>
             <header>
               <p className="eyebrow">One prelude. Seven focused modules.</p>
-              <h2>Everything a serious contract test needs.</h2>
+              <h2 id="modules-heading">Everything a serious contract test needs.</h2>
               <div className="module-filter-bar">
                 <label htmlFor="module-search" className="sr-only">
                   Filter modules
@@ -912,7 +912,7 @@ export default function App() {
             {filteredModules.length > 0 ? (
               <div className="module-grid" id="module-grid">
                 {filteredModules.map((mod, index) => (
-                  <article key={mod.name} className="module-card">
+                  <article key={mod.name} className="module-card" aria-labelledby={`module-heading-${mod.name}`}>
                     <button
                       type="button"
                       className="module-card-select"
@@ -920,11 +920,12 @@ export default function App() {
                       onClick={() => setSelectedModule(mod.name)}
                     >
                       <span aria-hidden="true">0{index + 1}</span>
-                      <h3>{mod.name}</h3>
+                      <h3 id={`module-heading-${mod.name}`}>{mod.name}</h3>
                       <p>{mod.description}</p>
                       <span className="module-category-tag">{mod.category}</span>
                     </button>
-                    <div className="module-card-links">
+                    <div className="module-card-links" role="group" aria-label={`Workflows for ${mod.name} module`}>
+                      <h4 className="sr-only">Available workflows</h4>
                       <a href="#commands" aria-label={`Open the command builder from the ${mod.name} module`}>
                         Command builder
                       </a>
@@ -943,11 +944,11 @@ export default function App() {
                 ))}
               </div>
             ) : (
-              <div className="module-empty-state" role="status" aria-live="polite">
+              <div className="module-empty-state" role="status" aria-live="polite" aria-labelledby="module-empty-heading">
                 <div className="module-empty-icon" aria-hidden="true">
                   ∅
                 </div>
-                <h3>{moduleFilter ? `No modules match “${moduleFilter}”` : "No modules match your filters"}</h3>
+                <h3 id="module-empty-heading">{moduleFilter ? `No modules match “${moduleFilter}”` : "No modules match your filters"}</h3>
                 <p>
                   {categoryFilter
                     ? `No testing modules in the ${categoryFilter} category match this search.`
@@ -1268,8 +1269,22 @@ export default function App() {
             </button>
           </div>
 
-          <section className="summary-card" aria-labelledby="command-summary-heading">
+          <section
+            className="summary-card"
+            aria-labelledby="command-summary-heading"
+            tabIndex={0}
+            role="region"
+            aria-label="Active command configuration summary"
+          >
             <h3 id="command-summary-heading">Command summary</h3>
+            <div
+              className="sr-only"
+              aria-live="polite"
+              aria-atomic="true"
+              data-testid="active-command-sr-summary"
+            >
+              Active {command} command settings: {summaryRows.map((row) => `${row.label} is ${row.value}`).join(", ")}.
+            </div>
             <p className="summary-workflow">{command}</p>
             <dl className="summary-settings">
               {summaryRows.map((row) => (
@@ -1495,7 +1510,14 @@ export default function App() {
             )}
           </section>
 
-          <div className="output">
+          <div className="output" role="region" aria-label="Generated CLI command">
+            <div
+              className="sr-only"
+              aria-live="polite"
+              data-testid="generated-command-sr-summary"
+            >
+              Active generated command: {generated}
+            </div>
             <code data-testid="command-output">{highlightCommand(generated)}</code>
             <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
             {/* #146 — download action for generated shell script */}
