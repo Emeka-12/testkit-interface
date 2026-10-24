@@ -6,12 +6,31 @@ The interface does not execute contracts in the browser. Generated commands run 
 
 ## Features
 
-- **CLI Workbench**: Switch between `coverage`, `limits`, and `audit` command builders with instant command generation and argument quoting.
-- **Accessible Workflow Navigation**: Compliant with WAI-ARIA tab pattern (`role="tablist"`, `role="tab"`, `role="tabpanel"`). Navigate workflows using keyboard arrow keys (`ArrowRight`, `ArrowLeft`), `Home`, and `End` with roving `tabIndex`.
-- **Form Controls & Labels**: Explicit association of labels and form controls (`htmlFor` / `id`), enabling assistive technology support.
-- **Input Validation**: Real-time validation for required contract paths and limits identifiers (`fn` and `ramp` verified as valid Rust identifiers). Displays inline `role="alert"` messages linked with `aria-invalid` and `aria-describedby`, safely disabling clipboard copy while inputs are invalid.
-- **Default Reset**: Quickly restore customized inputs back to canonical workflow defaults via the `Reset` action.
-- **Clipboard Feedback & Status**: Copy commands with visual and screen-reader status announcements via `aria-live="polite"`. Handles clipboard success (`Copied`) as well as graceful error recovery on failure (`Failed`).
+- **Design System & Theme Tokens**: Comprehensive CSS custom property scale (`:root`) standardizing color schemes (canvas, surfaces, accent, text hierarchy, borders) and spacing increments.
+- **Module Filter & Empty State**: Search and filter testing modules by name or description with real-time feedback and an accessible empty-state layout with quick filter reset.
+- **Responsive Layout Enhancements**:
+  - **Large-text Hero Layout**: Enhanced typography scaling at 1200px+ viewports for improved readability on large displays.
+  - **Improved Navigation**: Prevents link wrapping on small screens with optimized spacing and flexible layouts.
+  - **Tablet Two-Column Grid**: Compact two-column module layout for tablet widths (601px-900px) for better space utilization.
+  - **Landscape Phone Optimization**: Condensed command form layout for landscape phone orientations (541px-900px width, max 600px height).
+- **Required vs. Optional Setting Distinction**: Visual badges (`Required` / `Optional`) and `aria-required` attributes in the CLI workbench distinguishing mandatory parameters from optional configuration flags.
+- **Audit workflow support**: An expandable, keyboard-accessible preflight checklist, strict-mode control, and advanced multiline command editor help users prepare and reproduce source audits.
+- **Limits command reference**: A standalone, keyboard-accessible walkthrough builds the Sororail batch-payout contract and runs `soroban-testkit limits` against its `execute_equal` entry point, alongside argument defaults and offline/read-only behavior.
+- **Enhanced Copy Options**: Multiple ways to copy commands:
+  - **Copy with Comments** (#144): Export commands with inline explanatory comments for documentation and learning.
+  - **Copy as Script** (#145): Generate complete, executable bash scripts with variables and error handling.
+- **Workflow Management**:
+  - **Reset to Defaults** (#141): Quickly reset the active workflow to its default configuration.
+  - **Command History** (#143): Restore previously configured commands with one click (maintains last 10 commands).
+
+## Workflow Testing & Verification
+
+Comprehensive component testing ensures complete coverage of interactive command builder combinations:
+
+- **Coverage Workflow**: Component tests verifying report format selections (`html`, `lcov`, `text`), `--open` flag toggling, path quoting, and combined option configurations.
+- **Limits Workflow**: Component tests verifying `--contract` path resolution (including paths with spaces), custom function identifiers (`--fn`), and ramp parameters (`--ramp`).
+- **Audit Workflow**: Component tests verifying strict mode toggling (`--strict`), contract source paths, and spaces in path arguments.
+- **Workflow Switching**: Component tests ensuring instantaneous tab state changes, workflow description synchronization, dynamic mounting/unmounting of workflow-specific inputs, and seamless clipboard command generation.
 
 ## Development
 
