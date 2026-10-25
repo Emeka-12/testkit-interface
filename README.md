@@ -1,6 +1,6 @@
 # Soroban Testkit Interface
 
-A visual companion to [Soroban Testkit](https://github.com/soroban-testkit/testkit-blockchain). It documents the library's focused testing modules and provides a command builder for the supported CLI workflows.
+A visual companion to [Soroban Testkit](https://github.com/soroban-testkit/testkit-blockchain). It documents the library's focused testing modules and provides an accessible, validated command builder for supported CLI workflows (`coverage`, `limits`, `audit`).
 
 The interface does not execute contracts in the browser. Generated commands run locally through `soroban-testkit`, keeping contract tests deterministic and offline as required by the core project.
 

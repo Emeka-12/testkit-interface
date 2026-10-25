@@ -40,7 +40,7 @@ describe("App command copy", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "audit" }));
+    fireEvent.click(screen.getByRole("tab", { name: "audit" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
     await waitFor(() =>
