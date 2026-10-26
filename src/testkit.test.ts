@@ -5,6 +5,8 @@ import {
   compareConfigurations,
   effectiveDefaults,
   formatCommandLine,
+  formatCommandWithComments,
+  formatCommandAsScript,
   installationSteps,
   localFileGuides,
   summarizeConfiguration,
@@ -417,3 +419,172 @@ describe("compareConfigurations", () => {
 });
 
 
+
+// Issue #144: Tests for formatCommandWithComments
+describe("formatCommandWithComments", () => {
+  it("formats coverage command with explanatory comments", () => {
+    const formatted = formatCommandWithComments({
+      command: "coverage",
+      path: "./contracts",
+      format: "html",
+      open: true,
+      fn: "",
+      ramp: "",
+      strict: false,
+    });
+
+    expect(formatted).toContain("# Generate contract-test coverage");
+    expect(formatted).toContain("soroban-testkit coverage");
+    expect(formatted).toContain("# Project or contract path");
+    expect(formatted).toContain("# Output format");
+    expect(formatted).toContain("# Open report in browser");
+  });
+
+  it("formats limits command with explanatory comments", () => {
+    const formatted = formatCommandWithComments({
+      command: "limits",
+      path: "target/wasm32v1-none/release/contract.wasm",
+      format: "html",
+      open: false,
+      fn: "batch_payout",
+      ramp: "recipients",
+      strict: false,
+    });
+
+    expect(formatted).toContain("# Ramp a contract input to find its practical resource ceiling");
+    expect(formatted).toContain("soroban-testkit limits");
+    expect(formatted).toContain("# Path to compiled WASM artifact");
+    expect(formatted).toContain("# Function to probe for limits");
+    expect(formatted).toContain("# Parameter to increase");
+  });
+
+  it("formats audit command with explanatory comments", () => {
+    const formatted = formatCommandWithComments({
+      command: "audit",
+      path: "./src",
+      format: "text",
+      open: false,
+      fn: "",
+      ramp: "",
+      strict: true,
+    });
+
+    expect(formatted).toContain("# Scan contract sources for auth, arithmetic, and TTL risks");
+    expect(formatted).toContain("soroban-testkit audit");
+    expect(formatted).toContain("# Contract source directory");
+    expect(formatted).toContain("# Fail on warnings");
+  });
+
+  it("handles empty paths with defaults", () => {
+    const formatted = formatCommandWithComments({
+      command: "limits",
+      path: "",
+      format: "html",
+      open: false,
+      fn: "",
+      ramp: "",
+      strict: false,
+    });
+
+    expect(formatted).toContain("target/wasm32v1-none/release/contract.wasm");
+    expect(formatted).toContain("batch_payout");
+    expect(formatted).toContain("recipients");
+  });
+});
+
+// Issue #145: Tests for formatCommandAsScript
+describe("formatCommandAsScript", () => {
+  it("generates a valid bash script for coverage command", () => {
+    const script = formatCommandAsScript({
+      command: "coverage",
+      path: "./contracts",
+      format: "html",
+      open: true,
+      fn: "",
+      ramp: "",
+      strict: false,
+    });
+
+    expect(script).toContain("#!/usr/bin/env bash");
+    expect(script).toContain("set -e");
+    expect(script).toContain("# Coverage workflow configuration");
+    expect(script).toContain('PROJECT_PATH="./contracts"');
+    expect(script).toContain('FORMAT="html"');
+    expect(script).toContain("OPEN_REPORT=true");
+    expect(script).toContain("soroban-testkit coverage");
+    expect(script).toContain('echo "Command completed successfully"');
+  });
+
+  it("generates a valid bash script for limits command", () => {
+    const script = formatCommandAsScript({
+      command: "limits",
+      path: "target/wasm32v1-none/release/contract.wasm",
+      format: "html",
+      open: false,
+      fn: "execute_equal",
+      ramp: "recipients",
+      strict: false,
+    });
+
+    expect(script).toContain("#!/usr/bin/env bash");
+    expect(script).toContain("# Resource limits configuration");
+    expect(script).toContain('CONTRACT="target/wasm32v1-none/release/contract.wasm"');
+    expect(script).toContain('FUNCTION="execute_equal"');
+    expect(script).toContain('RAMP_PARAM="recipients"');
+    expect(script).toContain("soroban-testkit limits");
+    expect(script).toContain('--contract "$CONTRACT"');
+    expect(script).toContain('--fn "$FUNCTION"');
+    expect(script).toContain('--ramp "$RAMP_PARAM"');
+  });
+
+  it("generates a valid bash script for audit command", () => {
+    const script = formatCommandAsScript({
+      command: "audit",
+      path: "./src",
+      format: "text",
+      open: false,
+      fn: "",
+      ramp: "",
+      strict: true,
+    });
+
+    expect(script).toContain("#!/usr/bin/env bash");
+    expect(script).toContain("# Audit workflow configuration");
+    expect(script).toContain('SOURCE_PATH="./src"');
+    expect(script).toContain("STRICT_MODE=true");
+    expect(script).toContain("soroban-testkit audit");
+    expect(script).toContain("--strict");
+  });
+
+  it("includes timestamp and workflow metadata", () => {
+    const script = formatCommandAsScript({
+      command: "coverage",
+      path: ".",
+      format: "html",
+      open: true,
+      fn: "",
+      ramp: "",
+      strict: false,
+    });
+
+    expect(script).toContain("# Generated:");
+    expect(script).toContain("# Workflow: coverage");
+    expect(script).toMatch(/# Generated: \d{4}-\d{2}-\d{2}/);
+  });
+
+  it("uses default values when fields are empty", () => {
+    const script = formatCommandAsScript({
+      command: "limits",
+      path: "",
+      format: "html",
+      open: false,
+      fn: "",
+      ramp: "",
+      strict: false,
+    });
+
+    expect(script).toContain('CONTRACT="target/wasm32v1-none/release/contract.wasm"');
+    expect(script).toContain('FUNCTION="batch_payout"');
+    expect(script).toContain('RAMP_PARAM="recipients"');
+  });
+});
